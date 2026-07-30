@@ -147,9 +147,14 @@ def read_edf(filename, start, stop=None, trial_info=None, missing=0.0):
                     int(parts[0])
                 except (ValueError, IndexError):
                     continue  # not a sample line
-                x, y = float(parts[1]), float(parts[2])
-                if float(parts[3]) == 0.0:  # pupil size 0.0 == missing
+                # pupil size 0.0 == missing sample -- when missing, EyeLink
+                # writes x/y as a non-numeric placeholder (e.g. '   .')
+                # rather than a real coordinate, so pupil must be checked
+                # first to avoid trying to float()-parse that placeholder
+                if float(parts[3]) == 0.0:
                     x, y = missing, missing
+                else:
+                    x, y = float(parts[1]), float(parts[2])
                 trial["x"].append(x)
                 trial["y"].append(y)
                 trial["trackertime"].append(int(parts[0]))
@@ -233,9 +238,14 @@ def read_edf_time_overlap(filename, start, stop, missing=0.0):
                     int(parts[0])
                 except (ValueError, IndexError):
                     continue
-                x, y = float(parts[1]), float(parts[2])
+                # pupil size 0.0 == missing sample -- when missing, EyeLink
+                # writes x/y as a non-numeric placeholder (e.g. '   .')
+                # rather than a real coordinate, so pupil must be checked
+                # first to avoid trying to float()-parse that placeholder
                 if float(parts[3]) == 0.0:
                     x, y = missing, missing
+                else:
+                    x, y = float(parts[1]), float(parts[2])
                 trial["x"].append(x)
                 trial["y"].append(y)
                 trial["trackertime"].append(int(parts[0]))

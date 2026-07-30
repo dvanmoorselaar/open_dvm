@@ -26,6 +26,7 @@ from open_dvm.support.eye_readers import (
     read_eyetribe,
 )
 from tests.fixtures.eye_readers_sample_data import (
+    write_asc_dot_placeholder_sample,
     write_asc_mismatched_trial,
     write_asc_overlapping_trials,
     write_asc_two_trials,
@@ -420,6 +421,43 @@ class TestRegressions:
 
         assert len(data) == 2
         assert data[0]["x"][-1] != data[1]["x"][0]  # genuinely distinct trials
+
+    @pytest.mark.unit
+    def test_read_edf_handles_dot_placeholder_missing_sample(self, tmp_path):
+        # Real EyeLink .asc files write x/y as the literal non-numeric
+        # placeholder '   .' (not a zeroed coordinate) for a sample with
+        # no valid gaze position, always paired with pupil size 0.0.
+        # float(parts[1])/float(parts[2]) used to run unconditionally
+        # before the pupil==0.0 check, crashing with
+        # "ValueError: could not convert string to float: '   .'"
+        # on any real recording containing such a sample.
+        path = tmp_path / "sample.asc"
+        write_asc_dot_placeholder_sample(path)
+
+        data, _ = read_edf(str(path), start="start_trial", missing=0.0)
+
+        np.testing.assert_array_equal(data[0]["x"], [500.0, 0.0, 505.0])
+        np.testing.assert_array_equal(data[0]["y"], [400.0, 0.0, 402.0])
+
+    @pytest.mark.unit
+    def test_read_edf_time_overlap_handles_dot_placeholder_missing_sample(self, tmp_path):
+        # Same fix, same bug, in the sibling parser (duplicated sample-
+        # line parsing logic).
+        path = tmp_path / "sample.asc"
+        lines = [
+            "MSG\t1000 start_trial: 1\n",
+            "1001\t500.0\t400.0\t5000.0\t...\n",
+            "1002\t   .\t   .\t    0.0\t...\n",
+            "1003\t505.0\t402.0\t5010.0\t...\n",
+            "MSG\t1004 stop_trial: 1\n",
+        ]
+        with open(path, "w") as f:
+            f.writelines(lines)
+
+        data, _ = read_edf_time_overlap(str(path), start="start_trial", stop="stop_trial")
+
+        np.testing.assert_array_equal(data[0]["x"], [500.0, 0.0, 505.0])
+        np.testing.assert_array_equal(data[0]["y"], [400.0, 0.0, 402.0])
 
 
 if __name__ == "__main__":

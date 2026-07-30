@@ -19,6 +19,13 @@ def _asc_sample(t, x, y, pupil):
     return f"{t}\t{x}\t{y}\t{pupil}\t...\n"
 
 
+def _asc_sample_missing(t):
+    """A real EyeLink 'no gaze position available' sample line -- x/y are
+    the literal non-numeric placeholder '   .' (not a zero coordinate),
+    always paired with pupil size 0.0."""
+    return f"{t}\t   .\t   .\t    0.0\t...\n"
+
+
 def _asc_msg(t, message):
     return f"MSG\t{t} {message}\n"
 
@@ -51,6 +58,29 @@ def write_asc_two_trials(path, missing_sample=True):
     lines.append(_asc_sample(2016, 605.0, 302.0, 6005.0))
     lines.append(_asc_msg(2017, "TRIALID 6"))
     lines.append(_asc_sample(2018, 606.0, 303.0, 6010.0))
+
+    with open(path, "w") as f:
+        f.writelines(lines)
+
+
+def write_asc_dot_placeholder_sample(path):
+    """One trial with a real-EyeLink-style missing sample: x/y written
+    as the literal placeholder '   .' rather than a zeroed coordinate,
+    paired with pupil size 0.0 -- regression fixture for the crash this
+    causes if x/y are float()-parsed before checking pupil size.
+
+    A trailing marker line follows the last sample (as every real .asc
+    file has, e.g. END/trailer lines) so the last real sample isn't
+    also the literal last line of the file -- that's a separate,
+    unrelated quirk in read_edf's finalline handling, not something
+    this fixture is testing.
+    """
+    lines = []
+    lines.append(_asc_msg(1000, "start_trial: 1"))
+    lines.append(_asc_sample(1001, 500.0, 400.0, 5000.0))
+    lines.append(_asc_sample_missing(1002))
+    lines.append(_asc_sample(1003, 505.0, 402.0, 5010.0))
+    lines.append(_asc_msg(1004, "TRIALID 5"))
 
     with open(path, "w") as f:
         f.writelines(lines)
