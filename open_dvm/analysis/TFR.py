@@ -572,7 +572,13 @@ class TFR(FolderStructure):
         return wavelets, frex
 
     def wavelet_convolution(
-        self, X: np.ndarray, wavelet: np.ndarray, l_conv: int, nr_time: int, nr_epochs: int
+        self,
+        X: np.ndarray,
+        wavelet: np.ndarray,
+        l_conv: int,
+        nr_time: int,
+        nr_epochs: int,
+        wavelet_fft: np.ndarray = None,
     ) -> np.ndarray:
         """
         Performs wavelet convolution for time-frequency analysis.
@@ -588,13 +594,21 @@ class TFR(FolderStructure):
         X : np.ndarray
                 Input data in the frequency domain (FFT of the signal).
         wavelet : np.ndarray
-                The Morlet wavelet to convolve with the input data.
+                The Morlet wavelet to convolve with the input data. Ignored
+                if `wavelet_fft` is provided.
         l_conv : int
                 Length of the convolution (in samples).
         nr_time : int
                 Number of time points in the output.
         nr_epochs : int
                 Number of epochs in the input data.
+        wavelet_fft : np.ndarray, optional
+                Precomputed `fft(wavelet, l_conv)`. The wavelet FFT is
+                identical across all channels for a given frequency and
+                `l_conv`, so callers looping over channels (e.g. `tfr_loop`)
+                can compute it once per frequency and pass it in here to
+                avoid recomputing it once per channel. If None, it is
+                computed from `wavelet` as before.
 
         Returns
         -------
@@ -604,8 +618,11 @@ class TFR(FolderStructure):
                 corresponds to an epoch and each column to a time point.
         """
 
+        if wavelet_fft is None:
+            wavelet_fft = fft(wavelet, l_conv)
+
         # Perform convolution in frequency domain
-        m = ifft(X * fft(wavelet, l_conv), l_conv)
+        m = ifft(X * wavelet_fft, l_conv)
         m = m[: nr_time * nr_epochs + nr_time - 1]
         m = np.reshape(
             m[math.ceil((nr_time - 1) / 2 - 1) : int(-(nr_time - 1) / 2 - 1)],
@@ -1199,7 +1216,14 @@ class TFR(FolderStructure):
         nr_epochs = data.shape[0]
 
         l_conv = 2 ** self.nextpow2(nr_time * nr_epochs + nr_time - 1)
-        raw_conv = np.zeros((nr_epochs, self.num_frex, nr_ch, nr_time), dtype=complex)
+        # complex64 from the start avoids briefly holding both a complex128
+        # and complex64 copy (the result was downcast at the end anyway)
+        raw_conv = np.zeros((nr_epochs, self.num_frex, nr_ch, nr_time), dtype=np.complex64)
+
+        # wavelet FFT is identical across channels for a given frequency --
+        # precompute once here instead of once per channel per frequency
+        if self.method == "wavelet":
+            wavelet_ffts = [fft(w, l_conv) for w in self.wavelets]
 
         # loop over channels
         for ch_idx in range(nr_ch):
@@ -1212,7 +1236,8 @@ class TFR(FolderStructure):
                 for f in range(self.num_frex):
                     # convolve and get analytic signal
                     m = self.wavelet_convolution(
-                        x_fft, self.wavelets[f], l_conv, nr_time, nr_epochs
+                        x_fft, self.wavelets[f], l_conv, nr_time, nr_epochs,
+                        wavelet_fft=wavelet_ffts[f],
                     )
                     # populate output array
                     raw_conv[:, f, ch_idx] = m
