@@ -689,6 +689,10 @@ class RAW(BaseRaw, FolderStructure):
         event_id : list of int, optional
             List of trigger values to retain in the output. If None,
             all detected events are returned. Default is None.
+            **Never use 0 as a trigger value**: MNE's underlying event
+            detection treats 0 as the stim channel's rest/baseline
+            state, not a valid trigger, so a trigger value of 0 will
+            never be detected.
         stim_channel : str, optional
             Name of the stimulus/trigger channel. If None, uses the
             default stim channel specified during data loading.
@@ -738,6 +742,14 @@ class RAW(BaseRaw, FolderStructure):
         >>> events = raw.select_events(event_id=[1, 2],
         ...             consecutive=True)
         """
+
+        if event_id is not None and 0 in event_id:
+            warnings.warn(
+                "event_id includes 0, but MNE's find_events() treats 0 as "
+                "the stim channel's rest/baseline state, not a valid "
+                "trigger -- events with code 0 will never be detected. "
+                "Use a different trigger value."
+            )
 
         # Get stim channel data (make a copy to avoid modifying original)
         if stim_channel is None:
@@ -1047,6 +1059,7 @@ class Epochs(mne.Epochs, BaseEpochs, FolderStructure):
         self,
         events: np.ndarray,
         trigger_header: str = "trigger",
+        trial_nr_header: str = "nr_trials",
         beh_oi: Optional[List[str]] = None,
         idx_remove: Optional[np.ndarray] = None,
         eye_inf: Optional[dict] = None,
@@ -1069,6 +1082,12 @@ class Epochs(mne.Epochs, BaseEpochs, FolderStructure):
         trigger_header : str, optional
             Column name in behavioral CSV containing trigger values used
             for epoching. Default is 'trigger'.
+        trial_nr_header : str, optional
+            Column name in behavioral CSV containing a per-trial counter,
+            used to (a) offset trial numbers across concatenated
+            sessions and (b) report which trial(s) were removed when
+            resolving a trial-count mismatch. Only required if that
+            mismatch-handling is actually needed. Default is 'nr_trials'.
         beh_oi : list of str, optional
             List of column names from behavioral data to link to epochs.
             If None, all columns are used. Default is None.
@@ -1101,16 +1120,17 @@ class Epochs(mne.Epochs, BaseEpochs, FolderStructure):
         Raises
         ------
         ValueError
-            If behavioral file has more trials than EEG epochs and
-            'nr_trials' column is missing, preventing informed
+            If behavioral file has more trials than EEG epochs and the
+            trial_nr_header column is missing, preventing informed
             alignment. If too many EEG triggers exist and automatic
             alignment fails.
 
         Notes
         -----
-        - Requires behavioral CSV file with columns: trigger values
-          column (specified by trigger_header) and 'nr_trials'
-          (trial counter).
+        - If a trial-count mismatch needs resolving, requires a
+          behavioral CSV column with trial info (specified by
+          trial_nr_header) in addition to the trigger values column
+          (specified by trigger_header).
         - self.selection attribute (inherited from mne.Epochs) contains
           indices of non-dropped epochs.
         - Modifies self.metadata in-place to store aligned behavioral
@@ -1123,6 +1143,14 @@ class Epochs(mne.Epochs, BaseEpochs, FolderStructure):
           alignment, all behavioral variables are accessible via
           self.metadata, making trigger-condition coupling redundant and
           error-prone.
+        - **Why this matters for missing-trial detection**: mismatches
+          are resolved by walking beh_triggers/eeg_triggers position by
+          position and removing the first entry where they disagree.
+          This only works if trigger values are locally distinguishable
+          -- if the same condition-coded value repeats often (e.g. many
+          consecutive trials all triggered as 10), the walk can match a
+          post-shift trigger by coincidence and misalign silently.
+          Ascending per-trial triggers avoid this failure mode entirely.
 
         Examples
         --------
@@ -1210,16 +1238,18 @@ class Epochs(mne.Epochs, BaseEpochs, FolderStructure):
             report_str += f"{nr_remove} trigger events removed " "as specified by the user\n"
             eeg_triggers = np.delete(eeg_triggers, idx_remove)
 
-        # check alignment
-        session_switch = np.diff(df.nr_trials) < 1
-        if sum(session_switch) > 0:
-            idx = np.where(session_switch)[0] + 1
-            trial_split = np.array_split(df.nr_trials.values, idx)
-            # Convert to writeable copies (array_split returns read-only views)
-            trial_split = [np.array(chunk, copy=True) for chunk in trial_split]
-            for i in range(1, len(trial_split)):
-                trial_split[i] += trial_split[i - 1][-1]
-            df.nr_trials = np.hstack(trial_split)
+        # check alignment (only relevant if a trial-number column exists --
+        # it's used to offset trial numbers across concatenated sessions)
+        if trial_nr_header in df.columns:
+            session_switch = np.diff(df[trial_nr_header]) < 1
+            if sum(session_switch) > 0:
+                idx = np.where(session_switch)[0] + 1
+                trial_split = np.array_split(df[trial_nr_header].values, idx)
+                # Convert to writeable copies (array_split returns read-only views)
+                trial_split = [np.array(chunk, copy=True) for chunk in trial_split]
+                for i in range(1, len(trial_split)):
+                    trial_split[i] += trial_split[i - 1][-1]
+                df[trial_nr_header] = np.hstack(trial_split)
 
         missing_trials = []
         nr_miss = beh_triggers.size - eeg_triggers.size
@@ -1231,11 +1261,11 @@ class Epochs(mne.Epochs, BaseEpochs, FolderStructure):
                 f"Removing excess trials...<br>"
             )
 
-            if "nr_trials" not in df.columns:
+            if trial_nr_header not in df.columns:
                 raise ValueError(
-                    "Behavior file does not contain a column "
-                    "with trial info named nr_trials. Please "
-                    "adjust for automatic alignment"
+                    f"Behavior file does not contain a column with trial "
+                    f"info named '{trial_nr_header}'. Please adjust "
+                    f"trial_nr_header for automatic alignment"
                 )
         elif nr_miss < 0:
             report_str += (
@@ -1286,7 +1316,7 @@ class Epochs(mne.Epochs, BaseEpochs, FolderStructure):
             # continue to remove beh trials until data files are lined up
             for i, tr in enumerate(eeg_triggers):
                 if tr != beh_triggers[i]:  # remove trigger from beh_file
-                    miss = df["nr_trials"].iloc[i]
+                    miss = df[trial_nr_header].iloc[i]
                     missing_trials.append(miss)
                     if add_info:
                         report_str += f"{miss}, "
@@ -1301,7 +1331,7 @@ class Epochs(mne.Epochs, BaseEpochs, FolderStructure):
             # check whether there are missing trials at end of beh file
             if beh_triggers.size > eeg_triggers.size and stop:
                 # drop the last items from the beh file
-                new_miss = df.loc[df.index[-nr_miss:].values, "nr_trials"]
+                new_miss = df.loc[df.index[-nr_miss:].values, trial_nr_header]
                 missing_trials = np.hstack((missing_trials, new_miss.values))
                 df.drop(df.index[-nr_miss:], inplace=True)
                 report_str += (
@@ -1484,9 +1514,25 @@ class Epochs(mne.Epochs, BaseEpochs, FolderStructure):
 
         # Optional: rereference external EOG electrodes via subtraction
         if vEOG is not None or hEOG is not None:
+            requested_vEOG, requested_hEOG = vEOG, hEOG
+
             # Filter to only channels that exist in the data
             vEOG = [ch for ch in vEOG if ch in self.ch_names] if vEOG else []
             hEOG = [ch for ch in hEOG if ch in self.ch_names] if hEOG else []
+
+            # Warn instead of silently skipping VEOG/HEOG creation below --
+            # a mismatch here usually means the external channels are
+            # mislabeled or missing from the montage
+            if requested_vEOG and len(vEOG) != 2:
+                warnings.warn(
+                    f"vEOG channels {requested_vEOG} not fully found in "
+                    f"data (matched: {vEOG}). VEOG will not be created."
+                )
+            if requested_hEOG and len(hEOG) != 2:
+                warnings.warn(
+                    f"hEOG channels {requested_hEOG} not fully found in "
+                    f"data (matched: {hEOG}). HEOG will not be created."
+                )
 
             if len(vEOG) > 0 or len(hEOG) > 0:
                 eog = self.copy().pick(["eeg", "eog"])

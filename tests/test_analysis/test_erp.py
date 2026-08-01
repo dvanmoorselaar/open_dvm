@@ -181,6 +181,34 @@ class TestFlipTopography:
         # HEOG polarity is still inverted for flipped trials)
         np.testing.assert_array_equal(data[0], [3, 1, 2, 0, -4])
 
+    @pytest.mark.unit
+    def test_warns_when_mirror_electrode_missing(self):
+        """Regression test: an auto-generated flip pair that can't find its
+        mirror electrode (e.g. O2 missing/mislabeled) used to be silently
+        dropped -- it should now warn instead."""
+        ch_names = ["O1", "P7", "P8", "HEOG"]
+        data = np.zeros((2, len(ch_names), 5))
+        info = mne.create_info(ch_names, 100, ch_types=["eeg", "eeg", "eeg", "eog"])
+        epochs = mne.EpochsArray(data, info, tmin=-0.05)
+        trial_info = pd.DataFrame({"target_loc": [1, 2]})
+
+        with pytest.warns(UserWarning, match="No mirror electrode found"):
+            ERP.flip_topography(epochs, trial_info, topo_flip={"target_loc": [1]})
+
+    @pytest.mark.unit
+    def test_warns_when_heog_channel_missing(self):
+        """Regression test: a missing/mislabeled HEOG channel used to
+        silently skip the polarity correction while still reporting
+        success -- it should now warn instead."""
+        ch_names = ["O1", "O2", "P7", "P8"]
+        data = np.zeros((2, len(ch_names), 5))
+        info = mne.create_info(ch_names, 100, ch_types="eeg")
+        epochs = mne.EpochsArray(data, info, tmin=-0.05)
+        trial_info = pd.DataFrame({"target_loc": [1, 2]})
+
+        with pytest.warns(UserWarning, match="HEOG channel 'HEOG' not found"):
+            ERP.flip_topography(epochs, trial_info, topo_flip={"target_loc": [1]})
+
 
 # ============================================================================
 # select_erp_data

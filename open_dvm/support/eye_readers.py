@@ -169,13 +169,20 @@ def read_edf_time_overlap(filename, start, stop, missing=0.0):
     marker pairs are located up front by matching trial number, then
     each trial's data is parsed from the line range between them.
 
+    Unlike `read_edf`, a trial number is not optional here: since trials
+    can overlap, start/stop lines can't be paired up by order alone (the
+    Nth start doesn't necessarily belong with the Nth stop), so each
+    line must end with a parseable trial number for correct pairing. If
+    your trials never overlap, use `read_edf` (with `stop=None`)
+    instead -- it doesn't have this requirement.
+
     Parameters
     ----------
     filename : str
         Path to the .asc file.
     start : str
-        Substring identifying a trial-start line. The line is expected
-        to end with ": <trial_nr>".
+        Substring identifying a trial-start line. The line must end
+        with a trial number (e.g. ": 3", "trial 3") -- see above.
     stop : str
         Substring identifying a trial-end line, in the same format.
     missing : float, default=0.0
@@ -195,10 +202,20 @@ def read_edf_time_overlap(filename, start, stop, missing=0.0):
         raw = f.readlines()
 
     def _marker_info(line, idx):
+        match = re.search(r"(\d+)\s*$", line)
+        if match is None:
+            raise ValueError(
+                f"Could not parse a trailing trial number from line "
+                f"{line!r} (line {idx}). read_edf_time_overlap requires "
+                "each start/stop marker message to end with a trial "
+                "number, since overlapping trials can't be paired by "
+                "order alone -- use read_edf (stop=None) instead if "
+                "your trials don't overlap and don't need this."
+            )
         return {
             "l_idx": idx,
             "timing": int(line[4 : line.find(" ")]),
-            "nr": int(line[line.find(":") + 2 : -1]),
+            "nr": int(match.group(1)),
         }
 
     starts = [_marker_info(line, idx) for idx, line in enumerate(raw) if start in line]

@@ -286,6 +286,43 @@ class TestReadEdfTimeOverlap:
         assert trial_nr == [1]
         np.testing.assert_array_equal(data[0]["x"], [500.0, 501.0])
 
+    @pytest.mark.unit
+    def test_marker_without_colon_still_parses(self, tmp_path):
+        """Regression test: the old parser located the trial number via
+        the position of a literal ':' character, so a marker format
+        without a colon (e.g. 'start_trial 1' instead of
+        'start_trial: 1') either crashed or silently extracted the
+        wrong number. A trailing-number regex handles both formats."""
+        path = tmp_path / "no_colon.asc"
+        lines = [
+            "MSG\t1000 start_trial 1\n",
+            "1001\t500.0\t400.0\t5000.0\t...\n",
+            "MSG\t1010 stop_trial 1\n",
+        ]
+        path.write_text("".join(lines))
+
+        data, trial_nr = read_edf_time_overlap(
+            str(path), start="start_trial", stop="stop_trial", missing=0.0
+        )
+
+        assert trial_nr == [1]
+
+    @pytest.mark.unit
+    def test_unparseable_trial_number_raises_clear_error(self, tmp_path):
+        """Regression test: a marker line with no trailing number used
+        to raise an opaque ValueError from int()-parsing a slice of the
+        line; it should now raise a clear, actionable error instead."""
+        path = tmp_path / "no_number.asc"
+        lines = [
+            "MSG\t1000 start_trial no number here\n",
+            "1001\t500.0\t400.0\t5000.0\t...\n",
+            "MSG\t1010 stop_trial no number here\n",
+        ]
+        path.write_text("".join(lines))
+
+        with pytest.raises(ValueError, match="Could not parse a trailing trial number"):
+            read_edf_time_overlap(str(path), start="start_trial", stop="stop_trial", missing=0.0)
+
 
 # ============================================================================
 # read_eyetribe

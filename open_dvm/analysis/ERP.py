@@ -864,6 +864,7 @@ class ERP(FolderStructure):
                 " left and even electrodes are right"
             )
             flip_dict = {}
+            unmatched = []
             for elec in epochs.ch_names:
                 if elec[-1].isdigit():
                     base_name = elec[:-1]
@@ -872,6 +873,13 @@ class ERP(FolderStructure):
                         mirror_elec = f"{base_name}{number + 1}"
                         if mirror_elec in epochs.ch_names:
                             flip_dict[elec] = mirror_elec
+                        else:
+                            unmatched.append((elec, mirror_elec))
+            if unmatched:
+                warnings.warn(
+                    f"No mirror electrode found for {unmatched} -- these "
+                    "electrodes will not be flipped. Check channel naming."
+                )
 
         idx_l = np.hstack([np.where(df[header] == l)[0] for l in left])
 
@@ -888,6 +896,11 @@ class ERP(FolderStructure):
 
         if heog in epochs.ch_names:
             epochs._data[idx_l, epochs.ch_names.index(heog)] *= -1
+        else:
+            warnings.warn(
+                f"HEOG channel '{heog}' not found in epochs -- HEOG "
+                "polarity will not be corrected for flipped trials."
+            )
 
         return epochs
 

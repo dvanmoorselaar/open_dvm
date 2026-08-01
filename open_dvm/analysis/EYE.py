@@ -235,6 +235,7 @@ class EYE(FolderStructure):
         start: str = "start_trial",
         trial_info: Optional[list] = None,
         stop: Optional[str] = None,
+        trial_nr_offset: int = 1,
     ) -> Tuple[np.ndarray, pd.DataFrame, np.ndarray]:
         """
         Load and synchronize eye tracker and behavioral data files.
@@ -263,6 +264,14 @@ class EYE(FolderStructure):
         stop : str, optional
             Event marker string for trial offset. If None, uses trial
             start markers to segment data. Default is None.
+        trial_nr_offset : int, default=1
+            Added to the trial number parsed from each start-trial
+            message before matching it against the behavioral file's
+            'nr_trials' column (only used when eye has fewer trials
+            than behavior, to identify which behavioral trials have no
+            corresponding eye recording). Default of 1 matches
+            OpenSesame's 0-indexed trial counter; set to 0 if your
+            experiment software doesn't have this offset.
 
         Returns
         -------
@@ -376,19 +385,24 @@ class EYE(FolderStructure):
             for i, trial in enumerate(eye):
                 for event in trial["events"]["msg"]:
                     if start in event[1]:
-                        trial_nr = int("".join(filter(str.isdigit, event[1])))
-                        # control for OpenSesame trial counter
-                        eye_trials.append(trial_nr + 1)
-                        if "nr_trials" in df.columns and trial_nr + 1 not in df["nr_trials"].values:
+                        match = re.search(r"\d+", event[1])
+                        if match is None:
+                            warnings.warn(
+                                f"Could not parse a trial number from start "
+                                f"message {event[1]!r} -- skipping it for "
+                                "trial-number-based matching."
+                            )
+                            continue
+                        trial_nr = int(match.group()) + trial_nr_offset
+                        eye_trials.append(trial_nr)
+                        if "nr_trials" in df.columns and trial_nr not in df["nr_trials"].values:
                             print(trial_nr)
 
-            #  TODO: make linking more generic
             if len(eye_trials) == eye.shape[0]:
                 df.drop(df.index[nr_miss:], inplace=True)
-            else:
-                if "nr_trials" in df.columns:
-                    eye_mask = np.isin(df["nr_trials"].values, eye_trials)
-                    df = df[np.array(eye_mask)]
+            elif "nr_trials" in df.columns:
+                eye_mask = np.isin(df["nr_trials"].values, eye_trials)
+                df = df[np.array(eye_mask)]
         elif nr_miss > 0:
             print(f"Trials in beh and eye do not match. Final {nr_miss}")
             print(f" removed from eye. Please inspect data carefully")
