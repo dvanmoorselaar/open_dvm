@@ -340,7 +340,7 @@ class CTF(BDM):
         self.freq_scaling = freq_scaling
         self.slide_wind = slide_window
         self.laplacian = laplacian
-        self.pca = pca_cmp
+        self.pca_cmp = pca_cmp
         self.filter = filter
         self.report = report
 
@@ -1649,8 +1649,8 @@ class CTF(BDM):
         B1 = train_X
         B2 = test_X
 
-        if self.pca:
-            pca = PCA(n_components=self.pca, svd_solver="full").fit(B1)
+        if self.pca_cmp:
+            pca = PCA(n_components=self.pca_cmp, svd_solver="full").fit(B1)
             B1 = pca.transform(B1)
             B2 = pca.transform(B2)
 
