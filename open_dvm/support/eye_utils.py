@@ -346,7 +346,6 @@ def bin_tracker_angles(angles: np.ndarray, thresh: float, min_samp: float) -> np
     exclude_eye : Main exclusion function using this classifier
     """
 
-    # TODO: how to deal with trials without data
     tracker_bins = []
     for i, angle in enumerate(angles):
         # get data where deviation from fix is larger than thresh

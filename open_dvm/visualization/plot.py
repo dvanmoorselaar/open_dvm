@@ -277,7 +277,6 @@ def plot_2d(
     y_lim = [y_val[0], y_val[-1]]
     extent = [x_lim[0], x_lim[1], y_lim[0], y_lim[1]]
 
-    # TODO: fix or remove
     if diverging_cmap:
         if cmap is None:
             cmap = "RdBu_r"  # red = positive, blue = negative
@@ -307,6 +306,10 @@ def plot_2d(
             cmap_obj, data_min_shifted, data_max_shifted, name="shifted_colormap"
         )
         kwargs.setdefault("cmap", shifted_cmap)
+        # anchor normalization to the colormap's own range, else masked
+        # pixels can autoscale to a color indistinguishable from real data
+        kwargs.setdefault("vmin", data_min_shifted)
+        kwargs.setdefault("vmax", data_max_shifted)
 
         if isinstance(Z, np.ma.MaskedArray):
             Z = np.ma.masked_array(Z_shifted, mask=Z.mask)

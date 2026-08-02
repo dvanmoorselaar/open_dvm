@@ -207,6 +207,74 @@ class TestGetEyeData:
         assert df.shape[0] == 2
 
     @pytest.mark.unit
+    def test_unparseable_start_message_warns_and_uses_trial_nr_matching(
+        self, tmp_path, monkeypatch
+    ):
+        """Regression test: a start-trial message with no digits used to
+        crash with an opaque ValueError from int(''). It should now warn
+        and skip that trial, falling through to real trial_nr-based
+        matching (rather than the trivial trailing-trim shortcut, which
+        only applies when every eye trial parsed successfully)."""
+        monkeypatch.chdir(tmp_path)
+        lines = [
+            "MSG\t1000 start_trial: 1\n",
+            "1001\t500.0\t400.0\t5000.0\t...\n",
+            "MSG\t1100 start_trial: none\n",
+            "1101\t500.0\t400.0\t5000.0\t...\n",
+            "MSG\t1200 start_trial: 3\n",
+            "1201\t500.0\t400.0\t5000.0\t...\n",
+        ]
+        with open("sample.asc", "w") as f:
+            f.writelines(lines)
+        write_beh_csv("sample.csv", n_trials=4)  # nr_trials = [1, 2, 3, 4]
+
+        eye_obj = EYE(sfreq=1000)
+        with pytest.warns(UserWarning, match="Could not parse a trial number"):
+            eye, df, trial_info = eye_obj.get_eye_data(
+                sj="",
+                eye_files=["sample.asc"],
+                beh_files=["sample.csv"],
+                start="start_trial",
+                stop=None,
+            )
+
+        assert len(eye) == 3
+        # default trial_nr_offset=1: parsed trial numbers 1 and 3 become
+        # 2 and 4, matching behavioral nr_trials rows 2 and 4
+        np.testing.assert_array_equal(sorted(df["nr_trials"].values), [2, 4])
+
+    @pytest.mark.unit
+    def test_trial_nr_offset_is_configurable(self, tmp_path, monkeypatch):
+        """Regression test: the OpenSesame '+1' trial-counter adjustment
+        used to be unconditionally hardcoded; it's now a parameter."""
+        monkeypatch.chdir(tmp_path)
+        lines = [
+            "MSG\t1000 start_trial: 1\n",
+            "1001\t500.0\t400.0\t5000.0\t...\n",
+            "MSG\t1100 start_trial: none\n",
+            "1101\t500.0\t400.0\t5000.0\t...\n",
+            "MSG\t1200 start_trial: 3\n",
+            "1201\t500.0\t400.0\t5000.0\t...\n",
+        ]
+        with open("sample.asc", "w") as f:
+            f.writelines(lines)
+        write_beh_csv("sample.csv", n_trials=4)  # nr_trials = [1, 2, 3, 4]
+
+        eye_obj = EYE(sfreq=1000)
+        with pytest.warns(UserWarning, match="Could not parse a trial number"):
+            eye, df, trial_info = eye_obj.get_eye_data(
+                sj="",
+                eye_files=["sample.asc"],
+                beh_files=["sample.csv"],
+                start="start_trial",
+                stop=None,
+                trial_nr_offset=0,
+            )
+
+        assert len(eye) == 3
+        np.testing.assert_array_equal(sorted(df["nr_trials"].values), [1, 3])
+
+    @pytest.mark.unit
     def test_more_eye_than_beh_trials_removes_extra_eye_trials(self, tmp_path, monkeypatch):
         monkeypatch.chdir(tmp_path)
         write_asc_session("sample.asc", n_trials=5)
@@ -1218,10 +1286,10 @@ class TestSaccadeDetection:
     @pytest.mark.unit
     def test_glissade_offset_shifted_forward_when_velocity_still_rising(self):
         """
-        Independently verified via direct numpy computation of the
-        documented algorithm: when the naive glissade offset still has
-        a later uptick in velocity, the offset is shifted forward to
-        the first point where velocity stops rising.
+        Regression test: when the naive glissade offset still has a
+        later uptick in velocity, the offset is shifted forward to the
+        actual local minimum (V[116]=4.0), not the sample just before it
+        (V[115]=6.0, the pre-fix off-by-one result).
         """
         sd = SaccadeDetector(sfreq=1000)
         sd.peak_thresh = 50.0
@@ -1238,7 +1306,7 @@ class TestSaccadeDetection:
         V[118:] = 2.0
 
         result = sd.saccade_detection(V, output="dict")
-        assert result["glissades"] == {"1": (110, 115)}
+        assert result["glissades"] == {"1": (110, 116)}
 
     @pytest.mark.unit
     def test_glissade_rejected_when_corrected_offset_too_far(self):

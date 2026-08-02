@@ -312,6 +312,16 @@ class TestRawSelectEvents:
         np.testing.assert_array_equal(events, [[100, 0, 1]])
 
     @pytest.mark.unit
+    def test_warns_when_event_id_includes_zero(self):
+        """Regression test: 0 is MNE's stim-channel rest state, not a
+        detectable trigger value -- requesting it used to silently
+        return zero matches for that code with no indication why."""
+        raw = make_synthetic_raw_with_stim([(100, 1), (300, 2)])
+
+        with pytest.warns(UserWarning, match="event_id includes 0"):
+            raw.select_events(event_id=[0, 1])
+
+    @pytest.mark.unit
     def test_consecutive_false_removes_duplicate_events(self):
         """Two same-valued triggers with no other event between them are
         collapsed to the later one when consecutive=False (the default
@@ -531,6 +541,52 @@ class TestEpochsAlignMetaData:
         np.testing.assert_array_equal(epochs.metadata["trigger"].values, [1, 1, 2, 1])
 
     @pytest.mark.unit
+    def test_no_trial_nr_column_needed_on_perfect_match(self, tmp_path, monkeypatch):
+        """Regression test: the trial-number column used to be accessed
+        unconditionally (even with a perfect trigger match, where it's
+        never actually needed), crashing on any behavioral file that
+        doesn't use the default 'nr_trials' name."""
+        monkeypatch.chdir(tmp_path)
+        epochs = make_synthetic_epochs([1, 2, 1, 2], event_id=[1, 2])
+        events = epochs.events
+        write_behavioral_csv(1, 1, pd.DataFrame({"trigger": [1, 2, 1, 2]}))
+
+        missing, report = epochs.align_meta_data(events, trigger_header="trigger")
+
+        assert len(missing) == 0
+        assert len(epochs) == 4
+
+    @pytest.mark.unit
+    def test_custom_trial_nr_header_used_for_missing_trial_report(self, tmp_path, monkeypatch):
+        """Regression test: the trial-numbering column name was
+        hardcoded to 'nr_trials' with no way to point it at a
+        differently-named column."""
+        monkeypatch.chdir(tmp_path)
+        epochs = make_synthetic_epochs([1, 2, 1], event_id=[1, 2])
+        events = epochs.events
+        write_behavioral_csv(
+            1,
+            1,
+            pd.DataFrame(
+                {
+                    "trigger": [1, 2, 1, 2],
+                    "trial_num": [1, 2, 3, 4],
+                }
+            ),
+        )
+
+        missing, report = epochs.align_meta_data(
+            events,
+            trigger_header="trigger",
+            trial_nr_header="trial_num",
+            beh_oi=["trigger", "trial_num"],
+        )
+
+        assert list(missing) == [4]
+        assert len(epochs) == 3
+        np.testing.assert_array_equal(epochs.metadata["trial_num"], [1, 2, 3])
+
+    @pytest.mark.unit
     def test_no_behavior_file_found(self, tmp_path, monkeypatch):
         monkeypatch.chdir(tmp_path)
         epochs = make_synthetic_epochs([1, 1], event_id=1)
@@ -654,6 +710,31 @@ class TestEpochsAlignEyeData:
         assert tracker is False
         assert "No eye tracker data linked" in report
         assert len(epochs.ch_names) == n_ch_before
+
+    @pytest.mark.unit
+    def test_warns_when_hEOG_channel_name_mismatched(self, tmp_path, monkeypatch):
+        """Regression test: a requested hEOG/vEOG channel that doesn't
+        match any real channel name used to leave HEOG/VEOG silently
+        uncreated -- it should now warn instead."""
+        monkeypatch.chdir(tmp_path)
+        epochs = make_synthetic_epochs(
+            [1, 1],
+            event_id=1,
+            ch_names=["Fp1", "VEOG_lower", "HEOG_L", "HEOG_R", "Cz"],
+            ch_types=["eeg", "eog", "eog", "eog", "eeg"],
+        )
+
+        with pytest.warns(UserWarning, match="HEOG.*not fully found"):
+            epochs.align_eye_data(
+                eye_info=None,
+                missing=np.array([]),
+                nr_epochs=len(epochs),
+                vEOG=["Fp1", "VEOG_lower"],
+                hEOG=["HEOG_L_TYPO", "HEOG_R"],
+            )
+
+        assert "HEOG" not in epochs.ch_names
+        assert "VEOG" in epochs.ch_names
 
 
 # ============================================================================

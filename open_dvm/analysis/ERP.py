@@ -493,7 +493,9 @@ class ERP(FolderStructure):
         report = mne.Report(title="Single subject evoked overview")
         for cnd in evokeds.keys():
             if self.laplacian:
-                # TODO: remove after updating mne
+                # mne.Report.add_evokeds raises KeyError('csd') on
+                # CSD-transformed data (confirmed on mne 1.11.0, not an
+                # old-version issue) -- skip rather than crash
                 pass
             else:
                 report.add_evokeds(evokeds=evokeds[cnd], titles=cnd)
@@ -864,6 +866,7 @@ class ERP(FolderStructure):
                 " left and even electrodes are right"
             )
             flip_dict = {}
+            unmatched = []
             for elec in epochs.ch_names:
                 if elec[-1].isdigit():
                     base_name = elec[:-1]
@@ -872,6 +875,13 @@ class ERP(FolderStructure):
                         mirror_elec = f"{base_name}{number + 1}"
                         if mirror_elec in epochs.ch_names:
                             flip_dict[elec] = mirror_elec
+                        else:
+                            unmatched.append((elec, mirror_elec))
+            if unmatched:
+                warnings.warn(
+                    f"No mirror electrode found for {unmatched} -- these "
+                    "electrodes will not be flipped. Check channel naming."
+                )
 
         idx_l = np.hstack([np.where(df[header] == l)[0] for l in left])
 
@@ -888,6 +898,11 @@ class ERP(FolderStructure):
 
         if heog in epochs.ch_names:
             epochs._data[idx_l, epochs.ch_names.index(heog)] *= -1
+        else:
+            warnings.warn(
+                f"HEOG channel '{heog}' not found in epochs -- HEOG "
+                "polarity will not be corrected for flipped trials."
+            )
 
         return epochs
 
@@ -1915,8 +1930,10 @@ class ERP(FolderStructure):
             if phase == "offset":
                 x1 = np.fliplr(x1)
                 x2 = np.fliplr(x2)
-                # For offset analysis, flip times to analyze from end
-                # TODO: double check this is correct
+                # times_oi must flip exactly once for the whole loop --
+                # x1/x2 are re-flipped fresh each iteration, so reversing
+                # times_oi every iteration too would misalign it every
+                # other pair
                 if p == 0:
                     times_oi = times_oi[::-1]
 

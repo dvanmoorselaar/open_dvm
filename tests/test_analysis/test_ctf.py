@@ -283,6 +283,18 @@ class TestSetMaxTrial:
         # cnd 'a': bin0=4,bin1=4; cnd 'b': bin0=2,bin1=2 -> min=2, floor(2/2)=1
         assert ctf.set_max_trial(cnds, pos_bins, "Foster") == 1
 
+    @pytest.mark.unit
+    def test_kfold_method_raises_not_implemented(self):
+        """Regression test: method='k-fold' used to silently compute a
+        value here even though the rest of the k-fold pipeline
+        (spatial_ctf) is unimplemented -- it should now raise clearly."""
+        epochs, df = make_spatial_epochs(nr_bins=2, n_trials_per_bin=2, n_ch=4)
+        ctf = make_ctf(epochs, df, nr_bins=2, nr_chans=2)
+        pos_bins = np.array([0, 0, 1, 1])
+        cnds = np.array(["x"] * 4)
+        with pytest.raises(NotImplementedError, match="k-fold"):
+            ctf.set_max_trial(cnds, pos_bins, "k-fold")
+
 
 # ============================================================================
 # CTF.extract_power
@@ -823,6 +835,17 @@ class TestFitCosToCtf:
 
 class TestSpatialCtf:
     @pytest.mark.unit
+    def test_kfold_method_raises_not_implemented(self):
+        """Regression test: method='k-fold' used to just print a warning
+        and silently fall through to zero-filled/garbage output instead
+        of erroring, contradicting the class docstring's own claim that
+        it "will raise an error"."""
+        epochs, df = make_spatial_epochs(nr_bins=2, n_ch=2, n_trials_per_bin=4)
+        ctf = make_ctf(epochs, df, nr_bins=2, nr_chans=2, method="k-fold")
+        with pytest.raises(NotImplementedError, match="k-fold"):
+            ctf.spatial_ctf(freqs="broadband")
+
+    @pytest.mark.unit
     def test_within_condition_recovers_positive_slope(self):
         epochs, df = make_spatial_epochs(
             nr_bins=8, n_ch=8, n_trials_per_bin=40, n_samples=10, signal_amp=3.0, seed=1
@@ -1097,6 +1120,24 @@ class TestAdditionalPaths:
     def test_forward_model_pca_branch_runs(self):
         epochs, df = make_spatial_epochs(nr_bins=2, n_ch=2, n_trials_per_bin=4)
         ctf = make_ctf(epochs, df, nr_bins=2, nr_chans=2, pca_cmp=1)
+        C1 = np.eye(2)
+        X = np.array([[1.0, 2.0], [3.0, 4.0]])
+        C2s, W = ctf.forward_model(X, X, C1)
+        assert C2s.shape == (2, 2)
+
+    @pytest.mark.unit
+    def test_dynamic_pca_cmp_reassignment_takes_effect(self):
+        """Regression test: the constructor param is `pca_cmp`, but it
+        used to be stored internally as `self.pca` while forward_model
+        also read `self.pca` -- so reassigning `ctf.pca_cmp = N` after
+        construction (the documented dynamic-parameter-update pattern)
+        silently created a dead attribute and never affected PCA at all.
+        Both the attribute name and the reassignment path must match."""
+        epochs, df = make_spatial_epochs(nr_bins=2, n_ch=2, n_trials_per_bin=4)
+        ctf = make_ctf(epochs, df, nr_bins=2, nr_chans=2, pca_cmp=0)
+        assert ctf.pca_cmp == 0
+
+        ctf.pca_cmp = 1
         C1 = np.eye(2)
         X = np.array([[1.0, 2.0], [3.0, 4.0]])
         C2s, W = ctf.forward_model(X, X, C1)

@@ -303,8 +303,6 @@ class CTF(BDM):
         All parameters are documented in the class docstring above.
         """
 
-        # TODO: change moment to filter
-
         self.sj = sj
         self.df = df
         self.epochs = epochs
@@ -340,7 +338,7 @@ class CTF(BDM):
         self.freq_scaling = freq_scaling
         self.slide_wind = slide_window
         self.laplacian = laplacian
-        self.pca = pca_cmp
+        self.pca_cmp = pca_cmp
         self.filter = filter
         self.report = report
 
@@ -461,9 +459,10 @@ class CTF(BDM):
                 condition. Keys are condition names, values contain channel
                 response matrices and metadata.
         ctf_param : dict
-                #TODO: Clarify structure and contents of ctf_param
                 Dictionary containing extracted CTF parameters (e.g.,
-                slopes, peaks) for statistical analysis.
+                slopes, peaks) for statistical analysis. See
+                `get_ctf_tuning_params`'s Returns section for the exact
+                nested structure ({condition: {parameter: values}}).
         freqs : str or dict
                 Frequency specification for analysis:
                 - str: Frequency band name (e.g., 'alpha')
@@ -510,8 +509,6 @@ class CTF(BDM):
             if cnd == "info":
                 continue
 
-            section = "Condition: " + cnd
-            # TODO: add section after update mne (so that cnd info is displayed)
             # get ctf slope
             output = [
                 f"{d}_slopes"
@@ -554,7 +551,6 @@ class CTF(BDM):
                     plt.close()
 
             # get ctf tuning functions
-            # TODO: add that multiple frequencies can be plotted in a list
             for to in ["E", "T", "voltage", "envelope"]:
                 if f"C2_{to}" in ctf[cnd].keys():
                     fig, ax = plt.subplots()
@@ -824,14 +820,12 @@ class CTF(BDM):
         ctf, info = {}, {}
 
         if self.method == "k-fold":
-            # TODO: fix
-            print("Method not yet  implemented")
-            print("nr_folds is irrelevant and will be reset to 1")
-            # self.nr_folds = 1
+            raise NotImplementedError(
+                "method='k-fold' is planned for a future release and is "
+                "not yet functional. Use the default 'Foster' method."
+            )
         if collapse:
-            pass
-            # TODO: fix
-            # conditions += ['all_trials']
+            pass  # 'collapse' is under development and currently a no-op
 
         if type(cnds) == dict:
             train_cnds, test_cnds = self.check_cnds_input(cnds)
@@ -998,8 +992,7 @@ class CTF(BDM):
                             bin_te_E = np.zeros((self.nr_bins, nr_elec, nr_samples))
                             bin_te_T = bin_te_E.copy()
                             if self.method == "k-fold":
-                                pass
-                                # TODO: implement
+                                pass  # unreachable: spatial_ctf() raises before this point
                             elif self.method == "Foster":
                                 nr_itr_tr = self.nr_bins * (self.nr_folds - 1)
                                 bin_tr_E = np.zeros((nr_itr_tr, nr_elec, nr_samples))
@@ -1028,8 +1021,7 @@ class CTF(BDM):
                                         C1[bin_cnt] = self.basisset[perm_map[bin]]
                                         bin_cnt += 1
                                 elif self.method == "k-fold":
-                                    pass
-                                    # TODO: implement
+                                    pass  # unreachable: spatial_ctf() raises before this point
 
                             (
                                 ctf[cnd_inf]["C2_E"][p, fr, itr],
@@ -1105,7 +1097,6 @@ class CTF(BDM):
                 print("saving ctfs")
                 pickle.dump(ctfs, handle)
 
-            # TODO: add saving of weights and permutations and add to report
             with open(
                 self.folder_tracker(["ctf", self.to_decode], fname=f"{ctf_name}_info.pickle"), "wb"
             ) as handle:
@@ -1142,8 +1133,9 @@ class CTF(BDM):
                         - 'all': Use all available electrodes
                         - list: Specific electrode names or selection criteria
                 headers : list, default=[]
-                        #TODO: Clarify headers parameter usage
-                        Additional column headers for processing.
+                        Currently has no effect -- reserved for the
+                        disabled trial pre-averaging step (see
+                        KNOWN_LIMITATIONS.md).
                 excl_factor : dict, optional
                         Exclusion criteria for trial selection. Format:
                         {column_name: [values_to_exclude]}. Trials matching any
@@ -1185,9 +1177,6 @@ class CTF(BDM):
                 current source density, which can improve CTF spatial
                 selectivity.
 
-                #TODO: check whether trial averaging makes sense for broadband
-                ctf
-
                 Examples
                 --------
                 Basic data selection:
@@ -1220,10 +1209,9 @@ class CTF(BDM):
         if self.laplacian:
             epochs = mne.preprocessing.compute_current_source_density(epochs)
 
-        # if specified # average across trials
-        # TODO: check whether this makes sense for ctf
-        # (epochs,
-        # df) = self.average_trials(epochs,df,[self.to_decode] + headers)
+        # Trial pre-averaging (BDM.average_trials) is deliberately not
+        # applied here -- see KNOWN_LIMITATIONS.md for why it's disabled
+        # for CTF specifically.
 
         # limit analysis to electrodes of interest
         picks = select_electrodes(epochs, elec_oi)
@@ -1386,8 +1374,6 @@ class CTF(BDM):
         position bin to ensure balanced data across conditions and
         cross-validation folds.
 
-        #TODO: implement k-fold method properly
-
         Parameters
         ----------
         cnds : np.ndarray
@@ -1397,7 +1383,8 @@ class CTF(BDM):
         method : str
                 Cross-validation method to use:
                 - 'Foster': Standard k-fold approach using self.nr_folds
-                - 'k-fold': #TODO: Clarify k-fold method implementation
+                - 'k-fold': planned for a future release, not yet
+                  functional -- raises NotImplementedError
 
         Returns
         -------
@@ -1422,7 +1409,10 @@ class CTF(BDM):
         if method == "Foster":
             nr_per_bin = int(np.floor(min_count / self.nr_folds))
         elif method == "k-fold":
-            nr_per_bin = int(np.floor(min_count / self.nr_iter) * self.nr_iter)
+            raise NotImplementedError(
+                "method='k-fold' is planned for a future release and is "
+                "not yet functional. Use the default 'Foster' method."
+            )
 
         return nr_per_bin
 
@@ -1560,14 +1550,10 @@ class CTF(BDM):
         E = E[:, :, tois]
         T = T[:, :, tois]
 
-        # downsample
-        if band != "broadband":
-            E = E[:, :, ::downsample]
-            T = T[:, :, ::downsample]
-        else:
-            # TODO: addd mne downsampling method
-            E = E[:, :, ::downsample]
-            T = T[:, :, ::downsample]
+        # downsample (naive strided slicing, no anti-aliasing filter --
+        # see KNOWN_LIMITATIONS.md)
+        E = E[:, :, ::downsample]
+        T = T[:, :, ::downsample]
 
         return E, T
 
@@ -1640,7 +1626,6 @@ class CTF(BDM):
         """
 
         # check input shapes and adjust data shapes if needed
-        ## TODO: potentially remove
         if train_X.ndim == 3:
             train_X = train_X.mean(axis=-1)
             test_X = test_X.mean(axis=-1)
@@ -1649,8 +1634,8 @@ class CTF(BDM):
         B1 = train_X
         B2 = test_X
 
-        if self.pca:
-            pca = PCA(n_components=self.pca, svd_solver="full").fit(B1)
+        if self.pca_cmp:
+            pca = PCA(n_components=self.pca_cmp, svd_solver="full").fit(B1)
             B1 = pca.transform(B1)
             B2 = pca.transform(B2)
 
@@ -1740,9 +1725,6 @@ class CTF(BDM):
                 analysis, it creates a full time x time matrix showing how well
                 models trained at each timepoint generalize to every other time
                 point.
-
-                #TODO: Consider parallelizing the nested time loop for
-        #  performance
         """
 
         # set necessary parameters
@@ -1760,7 +1742,6 @@ class CTF(BDM):
         W_E = np.zeros((nr_samples_tr, nr_samples_te, nr_bins, nr_elec))
         C2_T, W_T = C2_E.copy(), W_E.copy()
 
-        # TODO: parallelize loop
         for tr_t in range(nr_samples_tr):
             for te_t in range(nr_samples_te):
                 if not GAT:
@@ -2108,6 +2089,20 @@ class CTF(BDM):
         f_name: str = None,
     ):
 
+        if self.method == "k-fold":
+            raise NotImplementedError(
+                "method='k-fold' is planned for a future release and is "
+                "not yet functional. Use the default 'Foster' method."
+            )
+        if nr_perm > 0:
+            raise NotImplementedError(
+                "localizer_spatial_ctf does not implement permutation "
+                "testing yet (nr_perm > 0 would silently produce "
+                "zero-filled, misleading 'null' output). Use nr_perm=0, "
+                "or use spatial_ctf, which does support permutation "
+                "testing."
+            )
+
         # set train and test data
         epochs_tr, df_tr = self.select_ctf_data(
             self.epochs[0], self.df[0], self.elec_oi, excl_factor_tr
@@ -2196,17 +2191,16 @@ class CTF(BDM):
                     else:
                         C1 = self.basisset
 
-                # TODO: insert permutation loop
+                # p is always 0: nr_perm > 0 is rejected above, and
+                # nr_itr is fixed to 1 for this function (see top)
                 p = 0
-                # TODO: make sure this works with iterations
                 train_idx = info[cnd]["train_idx"][0]
 
                 # initialize evoked and total power arrays
                 bin_te_E = np.zeros((self.nr_bins, nr_elec, nr_samp_te))
                 bin_te_T = bin_te_E.copy()
                 if self.method == "k-fold":
-                    pass
-                    # TODO: implement
+                    pass  # unreachable: localizer_spatial_ctf() raises before this point
                 elif self.method == "Foster":
                     nr_itr_tr = self.nr_bins * (self.nr_folds)
                     bin_tr_E = np.zeros((nr_itr_tr, nr_elec, nr_samp_tr))
@@ -2234,8 +2228,7 @@ class CTF(BDM):
                             C1[bin_cnt] = self.basisset[bin]
                             bin_cnt += 1
                     elif self.method == "k-fold":
-                        pass
-                        # TODO: implement
+                        pass  # unreachable: localizer_spatial_ctf() raises before this point
 
                 (
                     ctf[cnd]["C2_E"][p, fr],

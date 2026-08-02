@@ -443,14 +443,17 @@ class TestComputeTfrs:
         assert (X >= 0).all()  # power is non-negative
 
     @pytest.mark.unit
-    def test_phase_output_in_valid_cosine_range(self):
+    def test_phase_output_in_valid_angle_range(self):
+        """Regression test: output='phase' used to return cos(angle(...)),
+        collapsing +phi/-phi to the same value and losing phase sign.
+        It should now return the raw angle in (-pi, pi]."""
         epochs = make_epochs(n_trials=4, n_samples=20)
         df = make_behavioral_df(4, x=1)
         tfr = TFR(sj=1, epochs=epochs, df=df, min_freq=4, max_freq=20, num_frex=3)
 
         X = tfr.compute_tfrs(epochs.copy(), output="phase", for_decoding=True)
 
-        assert X.min() >= -1.0001 and X.max() <= 1.0001
+        assert X.min() >= -np.pi - 1e-4 and X.max() <= np.pi + 1e-4
 
     @pytest.mark.unit
     def test_induced_power_removes_phase_locked_component(self):

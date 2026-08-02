@@ -111,9 +111,9 @@ class BDM(FolderStructure):
             - 'LDA': Linear Discriminant Analysis
             - 'svm': Support Vector Machine (with calibration)
             - 'GNB': Gaussian Naive Bayes
-    data_type : {'raw', 'tfr'}, default='raw'
+    data_type : {'broadband', 'tfr'}, default='broadband'
             Data domain for decoding:
-            - 'raw': Time domain EEG data
+            - 'broadband': Time domain EEG data
             - 'tfr': Time-frequency domain power
     tfr : TFR, optional
             Pre-computed TFR object for time-frequency decoding. Required if
@@ -148,9 +148,10 @@ class BDM(FolderStructure):
     pca_components : tuple, default=(0, 'across')
             PCA parameters (n_components, mode):
             - n_components: Number of components (or fraction if <1)
-            #TODO: check whether this is correct
-            - mode: 'across' (fit on train+test) or 'all'
-                    (fit on train only)
+            - mode: 'across' (fit PCA on training-fold data only; this
+                    is the leak-free default) or 'all' (fit PCA once on
+                    the full train+test data, shared across all
+                    folds/timepoints -- can leak test information)
     montage : str, default=None
             EEG montage for visualization in reports. If not specified, a
             montage will be inferred from the EEG data.
@@ -181,7 +182,7 @@ class BDM(FolderStructure):
                     parameters provided.
             If invalid classifier or data_type specified.
     Warning
-            If TFR parameters provided when data_type='raw'.
+            If TFR parameters provided when data_type='broadband'.
 
     Examples
     --------
@@ -229,7 +230,7 @@ class BDM(FolderStructure):
         to_decode: str,
         nr_folds: int = 10,
         classifier: str = "LDA",
-        data_type: str = "raw",
+        data_type: str = "broadband",
         tfr: Optional[TFR] = None,
         metric: str = "auc",
         elec_oi: Union[str, list] = "all",
@@ -273,7 +274,7 @@ class BDM(FolderStructure):
                 Number of folds for k-fold cross validation.
         classifier : {'LDA', 'svm', 'GNB'}, default='LDA'
                 Classifier type to use for decoding.
-        data_type : {'raw', 'tfr'}, default='raw'
+        data_type : {'broadband', 'tfr'}, default='broadband'
                 Whether to perform decoding on raw EEG or time-frequency
                 data.
         tfr : TFR, optional
@@ -319,7 +320,7 @@ class BDM(FolderStructure):
                 If data_type='tfr' but required TFR parameters missing.
                 If invalid classifier or data_type specified.
         Warning
-                If TFR parameters provided when data_type='raw'.
+                If TFR parameters provided when data_type='broadband'.
 
         Notes
         -----
@@ -377,12 +378,12 @@ class BDM(FolderStructure):
                     "'tfr' object or frequency parameters (min_freq"
                     ", max_freq)"
                 )
-        elif self._data_type == "raw":
+        elif self._data_type == "broadband":
             if tfr is not None or min_freq is not None:
-                warnings.warn("TFR parameters ignored when data_type='raw'")
+                warnings.warn("TFR parameters ignored when data_type='broadband'")
             self.tfr = None
         else:
-            raise ValueError(f"data_type must be 'raw' or 'tfr', " f"got '{self._data_type}'")
+            raise ValueError(f"data_type must be 'broadband' or 'tfr', " f"got '{self._data_type}'")
 
     @property
     def data_type(self):
@@ -392,7 +393,7 @@ class BDM(FolderStructure):
         Returns
         -------
         str
-                The data type ('raw' or 'tfr') set during initialization.
+                The data type ('broadband' or 'tfr') set during initialization.
 
         Notes
         -----
@@ -502,13 +503,31 @@ class BDM(FolderStructure):
 
         The weights represent the contribution of each feature
         (electrode/time) to the classification decision.
+
+        For 3+ class decoding, `coef_` has one row per class (each row is
+        the discriminant direction separating that class from the rest);
+        only row 0 (the first class) is returned here, not an overall
+        multi-class summary. A future version may return per-class
+        weights instead (see KNOWN_LIMITATIONS.md).
         """
         if hasattr(clf, "coef_"):
             # For LDA
+            if clf.coef_.shape[0] > 1:
+                warnings.warn(
+                    "Classifier weights for >2 classes: returning only "
+                    "class 0's discriminant direction (coef_[0]), not an "
+                    "overall multi-class summary."
+                )
             weights = clf.coef_[0]
         elif hasattr(clf, "calibrated_classifiers_"):
             # For CalibratedClassifierCV (SVM)
             base_clf = clf.calibrated_classifiers_[0].estimator
+            if base_clf.coef_.shape[0] > 1:
+                warnings.warn(
+                    "Classifier weights for >2 classes: returning only "
+                    "class 0's discriminant direction (coef_[0]), not an "
+                    "overall multi-class summary."
+                )
             weights = base_clf.coef_[0]
         else:
             weights = np.zeros(Xtr_.shape[1])
@@ -836,7 +855,7 @@ class BDM(FolderStructure):
 
         # split the selected data into subsets and apply decoding
         # within those subsets
-        dec_scores, dec_params = [], []
+        dec_scores, dec_params, dec_info = [], [], []
         for key, value in split_fact.items():
             for v in value:
                 mask = df[key] == v
@@ -863,9 +882,9 @@ class BDM(FolderStructure):
 
                 dec_scores.append(bdm_scores)
                 dec_params.append(bdm_params)
+                dec_info.append((f"{key}_{v}", bdm_info))
 
         # create averaged output dictionary
-        # TODO:
         for key in (k for k in bdm_scores if k != "bdm_info"):
             output = np.mean([scores[key]["dec_scores"] for scores in dec_scores], axis=0)
             bdm_scores[key]["dec_scores"] = output
@@ -875,6 +894,16 @@ class BDM(FolderStructure):
                 bdm_params[key]["W"] = W
             else:
                 bdm_params[key] = {}
+
+        # merge each split's bdm_info instead of keeping only the last
+        # split's value; bdm_scores["bdm_info"] is what classify() and
+        # pickling actually expose, so update it too
+        bdm_info = {
+            f"{split_tag}_{run_key}": run_val
+            for split_tag, info in dec_info
+            for run_key, run_val in info.items()
+        }
+        bdm_scores["bdm_info"] = bdm_info
 
         return bdm_scores, bdm_params, bdm_info
 
@@ -994,8 +1023,8 @@ class BDM(FolderStructure):
                         for run in range(self.avg_runs):
                             bdm_info.update({"run_" + str(self.run_info): {}})
                             if self.cross:
-                                # TODO: make sure that multiple test conditions can be classified
-                                # TODO: make sure that bdm_info is saved
+                                # bdm_info not populated for cross-condition
+                                # decoding -- see KNOWN_LIMITATIONS.md
                                 test_idx = np.where(df[cnd_head] == te_cnd)[0]
                                 Xtr, Xte, Ytr, Yte = self.train_test_cross(
                                     X, y_perm, cnd_idx, test_idx
@@ -1021,7 +1050,6 @@ class BDM(FolderStructure):
                             self.run_info += 1
 
                         mean_class = class_acc.mean(axis=0)
-                        # TODO check weights!!!!!!
                         W = weights.mean(axis=0)[0]
                         conf_M = conf_matrix.mean(axis=0)
 
@@ -1143,8 +1171,8 @@ class BDM(FolderStructure):
                     # select train and test trials
                     self.run_info = 1
                     for run in range(self.avg_runs):
-                        # bdm_info.update({'run_' +str(self.run_info): {}})
-                        # TODO2: make sure that bdm_info is saved
+                        # bdm_info not populated/returned for
+                        # localizer-based decoding -- see KNOWN_LIMITATIONS.md
 
                         # split independent training and test data
                         Xtr, _, Ytr, _ = self.train_test_cross(X_tr, y_tr, cnd_idx_tr, False)
@@ -1215,7 +1243,6 @@ class BDM(FolderStructure):
 
         # select condition specific data
         if te_cnds is None:
-            # TODO: Make sure that trial averaging also works without condition info
             cnds = ["all_data"]
             cnd_header = None
         else:
@@ -1333,7 +1360,7 @@ class BDM(FolderStructure):
         print("prepare training data")
         # select the data
         X, _, df, times = self.select_bdm_data(
-            self.epochs[0].copy(), self.df[0].copy(), window_oi, excl_factor, []
+            self.epochs[0].copy(), self.df[0].copy(), window_oi, excl_factor, [None]
         )
 
         # limit to labels of interest
@@ -1456,12 +1483,16 @@ class BDM(FolderStructure):
             X = self.tfr.compute_tfrs(epochs, for_decoding=True, cnd_idx=cnd_idx)
 
         # apply baseline correction
-        if isinstance(self.baseline, tuple) and self._data_type == "raw":
+        if isinstance(self.baseline, tuple) and self._data_type == "broadband":
             epochs.apply_baseline(baseline=self.baseline)
 
-        # average across trials
-        # TODO: make sure trial averaging also works for tfr data
-        epochs, df = self.average_trials(epochs, df, [self.to_decode] + headers)
+        # average across trials -- for tfr mode this averages the
+        # already-decomposed power, not raw voltage, so averaging
+        # doesn't change what "power" means (see average_trials)
+        if self._data_type == "tfr":
+            X, df = self.average_trials(epochs, df, [self.to_decode] + headers, tfr_X=X)
+        else:
+            epochs, df = self.average_trials(epochs, df, [self.to_decode] + headers)
         y = df[self.to_decode]
 
         # downsample data
@@ -1488,7 +1519,7 @@ class BDM(FolderStructure):
             step = np.diff(epochs.times)[0] * self.window_size[0]
             window_oi = (window_oi, window_oi + step)
         idx = get_time_slice(epochs.times, window_oi[0], window_oi[1])
-        if self._data_type == "raw":
+        if self._data_type == "broadband":
             X = epochs._data[:, :, idx]
         else:
             X = X[..., idx]
@@ -1886,7 +1917,7 @@ class BDM(FolderStructure):
         return output
 
     def average_trials(
-        self, epochs: mne.Epochs, df: pd.DataFrame, beh_headers: list
+        self, epochs: mne.Epochs, df: pd.DataFrame, beh_headers: list, tfr_X: np.array = None
     ) -> Tuple[np.array, pd.DataFrame]:
         """
         Reduce data dimensionality by averaging trials within
@@ -1949,11 +1980,9 @@ class BDM(FolderStructure):
 
         Warnings
         --------
-        #TODO: Ensure trial averaging uses consistent subsets
-        # across runs.
+        Trial-averaging subsets are not seeded/reproducible across runs
+        -- see KNOWN_LIMITATIONS.md.
         """
-
-        # TODO: make sure trial averaging is always done on the same subset of data
 
         # get averaging info
         if isinstance(self.avg_trials, list):
@@ -1962,11 +1991,11 @@ class BDM(FolderStructure):
             avg_trials = self.avg_trials
 
         if avg_trials == 1:
-            return epochs, df
+            return (tfr_X, df) if tfr_X is not None else (epochs, df)
 
         print(f"Averaging across {avg_trials} trials")
         # initiate condition and label list
-        cnds, labels, X = [], [], []
+        cnds, labels, avg_data = [], [], []
 
         # slice beh and filter out None values from headers
         no_condition_specified = None in beh_headers
@@ -2004,14 +2033,23 @@ class BDM(FolderStructure):
             avg_idx = list(df.query(df_filt).index.values)
             random.shuffle(avg_idx)
             avg_idx = [avg_idx[i : i + avg_trials] for i in np.arange(0, len(avg_idx), avg_trials)]
-            X += [epochs._data[idx].mean(axis=0) for idx in avg_idx]
+            if tfr_X is not None:
+                # tfr_X shape (n_freqs, n_trials, n_channels, n_times) --
+                # average over the trial axis (1), not the raw-epochs axis (0)
+                avg_data += [tfr_X[:, idx].mean(axis=1) for idx in avg_idx]
+            else:
+                avg_data += [epochs._data[idx].mean(axis=0) for idx in avg_idx]
             labels += [var_combo[self.to_decode]] * len(avg_idx)
             cnds += [var_combo[cnd_header]] * len(avg_idx)
             if df.shape[-1] == 3:
                 split += [var_combo[split_header]] * len(avg_idx)
 
         # set data
-        epochs._data = np.stack(X)
+        if tfr_X is not None:
+            result = np.stack(avg_data, axis=1)
+        else:
+            epochs._data = np.stack(avg_data)
+            result = epochs
         if df.shape[-1] == 3:
             df = pd.DataFrame.from_dict(
                 {cnd_header: cnds, self.to_decode: labels, split_header: split}
@@ -2019,7 +2057,7 @@ class BDM(FolderStructure):
         else:
             df = pd.DataFrame.from_dict({cnd_header: cnds, self.to_decode: labels})
 
-        return epochs, df
+        return result, df
 
     def get_condition_labels(
         self,
@@ -2707,7 +2745,7 @@ class BDM(FolderStructure):
                 - True: Full GAT (train at each time, test at all times)
                 - Tuple: Custom time windows - data should be pre-sliced
         X : list or np.ndarray, default=[]
-                Optional raw data for PCA computation when using 'across'
+                Optional raw data for PCA computation when using 'all'
                 mode. Should match the dimensionality of Xtr/Xte.
 
         Returns
@@ -2889,8 +2927,9 @@ class BDM(FolderStructure):
                         )
                         conf_m = self.get_fake_confusion_matrix(Yte_, predict, labels[1], labels[0])
 
-                        # store results
-                        # TODO: create interpretable weights
+                        # store results -- unlike classify_(), weights here
+                        # are raw classifier weights, not Haufe-transformed
+                        # into interpretable patterns (see KNOWN_LIMITATIONS.md)
                         class_acc[n, freq, tr_t, te_t] = class_perf
                         conf_matrix[n, freq, tr_t, te_t] = conf_m
                         if not self.pca_components[0]:
@@ -3269,8 +3308,8 @@ class BDM(FolderStructure):
                 labels = [l for l in df[self.to_decode][trials] if l in bdm_labels]
 
                 # select the minimum number of trials per label for
-                # BDM procedure
-                # TODO: ADD OPTION FOR UNBALANCING
+                # BDM procedure (mandatory balancing -- see
+                # KNOWN_LIMITATIONS.md)
                 min_tr = np.unique(labels, return_counts=True)[1]
                 min_tr = int(np.floor(min(min_tr) / N) * N)
 
