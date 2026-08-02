@@ -231,6 +231,24 @@ class TestPerformStats:
         assert cluster_idx.max() <= 61
 
     @pytest.mark.unit
+    def test_perm_return_mask_matches_cluster_indices(self):
+        """return_mask=True should give a boolean mask consistent with
+        the raw cluster indices, matching the shape ttest/fdr return."""
+        rng = np.random.default_rng(0)
+        y = rng.normal(0, 1, size=(20, 100))
+        y[:, 40:60] += 1.5
+
+        t_vals, clusters, p_vals = perform_stats(y, chance=0, stat_test="perm")
+        _, sig_mask, _ = perform_stats(y, chance=0, stat_test="perm", return_mask=True)
+
+        assert sig_mask.dtype == bool
+        assert sig_mask.shape == y.shape[1:]
+        expected_mask = np.zeros(y.shape[1:], dtype=bool)
+        for cluster in clusters:
+            expected_mask[cluster] = True
+        np.testing.assert_array_equal(sig_mask, expected_mask)
+
+    @pytest.mark.unit
     def test_perm_no_effect_finds_no_significant_clusters(self):
         rng = np.random.default_rng(2)
         y = rng.normal(0, 1, size=(20, 50))  # pure noise, no effect

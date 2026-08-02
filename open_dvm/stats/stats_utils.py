@@ -298,6 +298,7 @@ def perform_stats(
     p_cluster: Optional[float] = None,
     threshold: Optional[float] = None,
     y2: Optional[np.ndarray] = None,
+    return_mask: bool = False,
 ) -> Tuple[np.ndarray, Union[list, np.ndarray], np.ndarray]:
     """Perform statistical testing on group-level neural data.
 
@@ -331,6 +332,11 @@ def perform_stats(
             (chance forced to 0) instead of on `y` alone -- i.e. "is
             condition A different from condition B?" rather than "is
             condition A different from chance?".
+    return_mask : bool, default=False
+            For stat_test='perm' only: return a boolean significance
+            mask (shape `y.shape[1:]`) instead of the raw list of
+            cluster index-tuples, matching the mask 'ttest'/'fdr'
+            already return. Has no effect for 'ttest'/'fdr'.
     stat_test : {'perm', 'ttest', 'fdr'}, default='perm'
             Statistical test method:
             - 'perm': Permutation cluster test with sign-flipping to
@@ -443,7 +449,6 @@ def perform_stats(
     >>> t_vals, sig_mask, p_vals = perform_stats(y_a, y2=y_b,
     ...                                            stat_test='perm')
     """
-    # TODO: add option to return a mask with significant points only
 
     if y2 is not None:
         if y2.shape != y.shape:
@@ -482,6 +487,12 @@ def perform_stats(
         sig_indices = np.where(p_vals <= p_thresh)[0]
         significant_clusters = [clusters[i] for i in sig_indices]
         significant_p_vals = p_vals[sig_indices]
+
+        if return_mask:
+            sig_mask = np.zeros(y.shape[1:], dtype=bool)
+            for cluster in significant_clusters:
+                sig_mask[cluster] = True
+            return t_obs, sig_mask, significant_p_vals
 
         return t_obs, significant_clusters, significant_p_vals
     elif stat_test == "ttest":

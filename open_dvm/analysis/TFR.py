@@ -146,9 +146,9 @@ class TFR(FolderStructure):
             Temporal downsampling factor. Values > 1 reduce temporal
             resolution but speed up analysis and reduce memory usage.
     laplacian : bool, default=False
-            TODO: check at which point during preprocessing to apply
-            Whether to apply Laplacian spatial filtering before analysis.
-            Helps reduce volume conduction effects.
+            Whether to apply Laplacian (CSD) spatial filtering before
+            analysis. Applied fresh at analysis time, not cached; see
+            KNOWN_LIMITATIONS.md.
     normalize_wavelets : bool, default=True
             Whether to normalize wavelets to unit energy. Recommended
             for consistent amplitude scaling across frequencies.
@@ -326,7 +326,6 @@ class TFR(FolderStructure):
         elec_oi: Union[str, list],
         excl_factor: dict = None,
         topo_flip: dict = None,
-        cnds: dict = None,
     ) -> Tuple[mne.Epochs, pd.DataFrame]:
         """
         Select and preprocess data for time-frequency analysis.
@@ -355,9 +354,6 @@ class TFR(FolderStructure):
                 Topography flipping criteria as
                 {column_name: condition_value}. Flips electrode positions
                 for specified trials (e.g., for lateralization analysis).
-        cnds : dict, optional
-                #TODO: Document condition specification for induced power
-                # analysis
 
         Returns
         -------
@@ -873,8 +869,8 @@ class TFR(FolderStructure):
             X = raw_conv.real**2
             X += raw_conv.imag**2
         elif output == "phase":
-            # TODO: check difference between sin and cos
-            X = np.cos(np.angle(raw_conv))
+            # instantaneous phase in radians, range (-pi, pi]
+            X = np.angle(raw_conv)
 
         # apply baseline (trial specific)
         if output == "power" and self.baseline is not None:
@@ -1168,7 +1164,6 @@ class TFR(FolderStructure):
 
     def tfr_loop(self, epochs: mne.Epochs) -> np.array:
         """
-        # TODO: check hilbert method
         Perform time-frequency decomposition across all channels.
 
         Helper method that applies the specified time-frequency method
@@ -1560,7 +1555,6 @@ class TFR(FolderStructure):
 
         return lx_power, pairs
 
-    # TODO: update fucnction (make it more general)
     @staticmethod
     def lateralization_index(tfr: dict, elec_oi: list = "all", elec_pairs: list = None) -> dict:
         """

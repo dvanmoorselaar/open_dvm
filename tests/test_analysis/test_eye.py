@@ -1286,10 +1286,10 @@ class TestSaccadeDetection:
     @pytest.mark.unit
     def test_glissade_offset_shifted_forward_when_velocity_still_rising(self):
         """
-        Independently verified via direct numpy computation of the
-        documented algorithm: when the naive glissade offset still has
-        a later uptick in velocity, the offset is shifted forward to
-        the first point where velocity stops rising.
+        Regression test: when the naive glissade offset still has a
+        later uptick in velocity, the offset is shifted forward to the
+        actual local minimum (V[116]=4.0), not the sample just before it
+        (V[115]=6.0, the pre-fix off-by-one result).
         """
         sd = SaccadeDetector(sfreq=1000)
         sd.peak_thresh = 50.0
@@ -1306,7 +1306,7 @@ class TestSaccadeDetection:
         V[118:] = 2.0
 
         result = sd.saccade_detection(V, output="dict")
-        assert result["glissades"] == {"1": (110, 115)}
+        assert result["glissades"] == {"1": (110, 116)}
 
     @pytest.mark.unit
     def test_glissade_rejected_when_corrected_offset_too_far(self):

@@ -283,6 +283,18 @@ class TestSetMaxTrial:
         # cnd 'a': bin0=4,bin1=4; cnd 'b': bin0=2,bin1=2 -> min=2, floor(2/2)=1
         assert ctf.set_max_trial(cnds, pos_bins, "Foster") == 1
 
+    @pytest.mark.unit
+    def test_kfold_method_raises_not_implemented(self):
+        """Regression test: method='k-fold' used to silently compute a
+        value here even though the rest of the k-fold pipeline
+        (spatial_ctf) is unimplemented -- it should now raise clearly."""
+        epochs, df = make_spatial_epochs(nr_bins=2, n_trials_per_bin=2, n_ch=4)
+        ctf = make_ctf(epochs, df, nr_bins=2, nr_chans=2)
+        pos_bins = np.array([0, 0, 1, 1])
+        cnds = np.array(["x"] * 4)
+        with pytest.raises(NotImplementedError, match="k-fold"):
+            ctf.set_max_trial(cnds, pos_bins, "k-fold")
+
 
 # ============================================================================
 # CTF.extract_power
@@ -822,6 +834,17 @@ class TestFitCosToCtf:
 
 
 class TestSpatialCtf:
+    @pytest.mark.unit
+    def test_kfold_method_raises_not_implemented(self):
+        """Regression test: method='k-fold' used to just print a warning
+        and silently fall through to zero-filled/garbage output instead
+        of erroring, contradicting the class docstring's own claim that
+        it "will raise an error"."""
+        epochs, df = make_spatial_epochs(nr_bins=2, n_ch=2, n_trials_per_bin=4)
+        ctf = make_ctf(epochs, df, nr_bins=2, nr_chans=2, method="k-fold")
+        with pytest.raises(NotImplementedError, match="k-fold"):
+            ctf.spatial_ctf(freqs="broadband")
+
     @pytest.mark.unit
     def test_within_condition_recovers_positive_slope(self):
         epochs, df = make_spatial_epochs(

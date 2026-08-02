@@ -71,6 +71,10 @@ Analyses are run from project-specific scripts, pointed at a project folder cont
 
 **For detailed file naming conventions and folder organization standards, see [NAMING_CONVENTIONS.md](NAMING_CONVENTIONS.md).**
 
+## Known Limitations
+
+See [KNOWN_LIMITATIONS.md](KNOWN_LIMITATIONS.md) for a list of known gaps, deferred features, and open methodological questions.
+
 ## Contributing
 
 Contributions are welcome -- see [CONTRIBUTING.md](CONTRIBUTING.md) for dev setup, running tests, and the PR process.

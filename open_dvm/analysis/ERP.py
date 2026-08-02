@@ -493,7 +493,9 @@ class ERP(FolderStructure):
         report = mne.Report(title="Single subject evoked overview")
         for cnd in evokeds.keys():
             if self.laplacian:
-                # TODO: remove after updating mne
+                # mne.Report.add_evokeds raises KeyError('csd') on
+                # CSD-transformed data (confirmed on mne 1.11.0, not an
+                # old-version issue) -- skip rather than crash
                 pass
             else:
                 report.add_evokeds(evokeds=evokeds[cnd], titles=cnd)
@@ -1928,8 +1930,10 @@ class ERP(FolderStructure):
             if phase == "offset":
                 x1 = np.fliplr(x1)
                 x2 = np.fliplr(x2)
-                # For offset analysis, flip times to analyze from end
-                # TODO: double check this is correct
+                # times_oi must flip exactly once for the whole loop --
+                # x1/x2 are re-flipped fresh each iteration, so reversing
+                # times_oi every iteration too would misalign it every
+                # other pair
                 if p == 0:
                     times_oi = times_oi[::-1]
 

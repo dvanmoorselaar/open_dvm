@@ -1644,7 +1644,6 @@ class Epochs(mne.Epochs, BaseEpochs, FolderStructure):
             angles = np.delete(angles, idx, axis=0)
             x = np.delete(x, idx, axis=0)
             y = np.delete(y, idx, axis=0)
-            # TODO: add timing check
             times /= 1000  # change to seconds
 
             # save eye data

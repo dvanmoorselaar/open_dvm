@@ -44,7 +44,7 @@ def make_bdm(epochs, df, **kwargs):
         baseline=None,
         nr_folds=5,
         elec_oi="all",
-        data_type="raw",
+        data_type="broadband",
         downsample=100,
         avg_trials=1,
     )
@@ -63,7 +63,7 @@ class TestDataTypeProperty:
         epochs, df = make_separable_epochs(n_trials=10)
         bdm = make_bdm(epochs, df)
 
-        assert bdm.data_type == "raw"
+        assert bdm.data_type == "broadband"
         with pytest.raises(AttributeError):
             bdm.data_type = "tfr"
 
@@ -133,6 +133,50 @@ class TestGetClassifierWeights:
         clf.fit(X, y)
 
         w = bdm.get_classifier_weights(clf, X)
+
+        assert w.shape == (3,)
+
+    @pytest.mark.unit
+    def test_binary_lda_does_not_warn(self):
+        """coef_.shape[0] == 1 for binary LDA -- no multi-class warning."""
+        bdm = BDM.__new__(BDM)
+        bdm.classifier = "LDA"
+        bdm.scale = True
+        bdm.seed = 42213
+        rng = np.random.default_rng(0)
+        X = np.vstack([rng.normal(0, 1, (20, 3)) + [3, 0, 0], rng.normal(0, 1, (20, 3))])
+        y = np.array([1] * 20 + [0] * 20)
+        clf = bdm.select_classifier()
+        clf.fit(X, y)
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            bdm.get_classifier_weights(clf, X)
+
+    @pytest.mark.unit
+    def test_multiclass_lda_warns_about_truncated_weights(self):
+        """Regression test: coef_[0] silently truncates to one class's
+        discriminant direction for 3+ class LDA -- it should now warn
+        so this isn't a silent trap."""
+        bdm = BDM.__new__(BDM)
+        bdm.classifier = "LDA"
+        bdm.scale = True
+        bdm.seed = 42213
+        rng = np.random.default_rng(0)
+        X = np.vstack(
+            [
+                rng.normal(0, 1, (20, 3)) + [3, 0, 0],
+                rng.normal(0, 1, (20, 3)) + [0, 3, 0],
+                rng.normal(0, 1, (20, 3)) + [0, 0, 3],
+            ]
+        )
+        y = np.array([0] * 20 + [1] * 20 + [2] * 20)
+        clf = bdm.select_classifier()
+        clf.fit(X, y)
+        assert clf.coef_.shape[0] > 1
+
+        with pytest.warns(UserWarning, match="class 0's discriminant"):
+            w = bdm.get_classifier_weights(clf, X)
 
         assert w.shape == (3,)
 
@@ -734,6 +778,58 @@ class TestCrossTimeDecoding:
 
 
 # ============================================================================
+# average_trials / select_bdm_data: trial-averaging trial-count consistency
+# ============================================================================
+
+
+class TestAverageTrialsTfrMode:
+    @pytest.mark.unit
+    def test_tfr_mode_x_and_y_trial_counts_match_after_averaging(self):
+        """Regression test: for data_type='tfr', X used to be computed
+        from the full pre-averaging epoch count while y/df were reduced
+        by average_trials afterward, silently misaligning X's rows with
+        the labels they're paired with (no crash -- averaged-df indices
+        just happened to stay in range against the larger X)."""
+        epochs, df = make_separable_epochs(
+            n_trials=40, n_ch=4, n_samples=40, sfreq=200, seed=0, separable_from_sample=0
+        )
+        bdm = make_bdm(
+            epochs,
+            df,
+            nr_folds=5,
+            data_type="tfr",
+            avg_trials=2,
+            min_freq=8,
+            max_freq=12,
+            num_frex=3,
+        )
+
+        X, y, df_out, _ = bdm.select_bdm_data(epochs.copy(), df.copy(), None, None, [None])
+
+        assert X.shape[1] == len(y) == df_out.shape[0]
+
+    @pytest.mark.unit
+    def test_classify_end_to_end_with_tfr_and_averaging(self):
+        epochs, df = make_separable_epochs(
+            n_trials=40, n_ch=4, n_samples=40, sfreq=200, seed=0, separable_from_sample=0
+        )
+        bdm = make_bdm(
+            epochs,
+            df,
+            nr_folds=5,
+            data_type="tfr",
+            avg_trials=2,
+            min_freq=8,
+            max_freq=12,
+            num_frex=3,
+        )
+
+        output, _ = bdm.classify(cnds=None, window_oi=(-0.1, 0.1), labels_oi="all", GAT=False)
+
+        assert output["all_data"]["dec_scores"].shape[-1] > 0
+
+
+# ============================================================================
 # classify(): end-to-end integration
 # ============================================================================
 
@@ -944,7 +1040,7 @@ class TestLocalizerClassifyIntegration:
             baseline=None,
             nr_folds=1,
             elec_oi="all",
-            data_type="raw",
+            data_type="broadband",
             downsample=100,
             avg_trials=1,
         )
@@ -970,7 +1066,7 @@ class TestLocalizerClassifyIntegration:
             baseline=None,
             nr_folds=1,
             elec_oi="all",
-            data_type="raw",
+            data_type="broadband",
             downsample=100,
             avg_trials=1,
         )
@@ -1047,6 +1143,32 @@ class TestIterClassify:
 
         assert {"a", "b"} <= set(output.keys())
         assert set(params.keys()) == {"a", "b"}
+
+    @pytest.mark.unit
+    def test_bdm_info_merged_across_splits_regression(self):
+        """Regression test: bdm_info used to be silently overwritten by
+        each split, so only the last split's reproducibility info
+        survived. It should now hold an entry per split."""
+        epochs, df = make_separable_epochs(
+            n_trials=80,
+            n_ch=4,
+            n_samples=20,
+            sfreq=100,
+            seed=0,
+            separable_from_sample=0,
+        )
+        df["session"] = (["s1"] * 40) + (["s2"] * 40)
+        bdm = make_bdm(epochs, df, nr_folds=5)
+
+        output, _ = bdm.classify(
+            cnds=dict(block_type=["main"]),
+            window_oi=(-0.1, 0.1),
+            labels_oi="all",
+            GAT=False,
+            split_fact={"session": ["s1", "s2"]},
+        )
+
+        assert {"session_s1_run_1", "session_s2_run_1"} <= set(output["bdm_info"].keys())
 
 
 if __name__ == "__main__":

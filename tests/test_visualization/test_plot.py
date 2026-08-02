@@ -272,6 +272,29 @@ class TestPlot2D:
         assert plt.gca().get_yscale() == "linear"
 
     @pytest.mark.unit
+    def test_diverging_cmap_color_range_anchored_to_significant_data(self):
+        """Regression test: with mask + non-NaN mask_value + diverging_cmap,
+        color normalization used to autoscale to the full filled array
+        (including mask_value pixels) instead of the significant-only
+        range the colormap was built from -- e.g. accuracy data in
+        [0.6, 0.9] with mask_value=0 and center=0.5 would autoscale to
+        [-0.5, 0.4], making masked pixels (shifted value 0) render as
+        neutral/chance-colored instead of clipping to the colormap edge,
+        while a real at-chance pixel would be miscolored as a moderate
+        effect. vmin/vmax must match the significant-only shifted range."""
+        Z = np.full((4, 5), 0.6)
+        mask = np.zeros_like(Z, dtype=bool)
+        mask[1:3, 2:4] = True
+        Z[mask] = np.linspace(0.6, 0.9, mask.sum())
+
+        plot_2d(Z, mask=mask, mask_value=0, diverging_cmap=True, center=0.5)
+
+        im = plt.gca().get_images()[0]
+        vmin, vmax = im.get_clim()
+        np.testing.assert_allclose(vmin, 0.6 - 0.5)
+        np.testing.assert_allclose(vmax, 0.9 - 0.5)
+
+    @pytest.mark.unit
     def test_diverging_cmap_with_masked_array(self):
         # diverging_cmap's shift logic has a separate branch for masked
         # arrays (mask + diverging_cmap combined)

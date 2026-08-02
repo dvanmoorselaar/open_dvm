@@ -700,7 +700,6 @@ class EYE(FolderStructure):
                 idx = get_time_slice(times[mask], drift_correct[0], drift_correct[1])
                 x_d = np.array(x_[idx])
                 y_d = np.array(y_[idx])
-                # TODO: add fixation quality metric
 
                 # only corrrect if fixation period contains no missing data,
                 #  and has no saccades
@@ -1736,9 +1735,9 @@ class SaccadeDetector(object):
             if gliss_w_off:
                 gliss_off = sac_off + gliss_w_off
                 diff = np.diff(V[gliss_off:])
-                # TODO: check whether this fix is ok
                 if sum(diff > 0) > 0:
-                    gliss_off += np.where(diff >= 0)[0][0] - 1
+                    # index j itself is the local minimum, not j-1
+                    gliss_off += np.where(diff >= 0)[0][0]
 
                 if (
                     np.isnan(V[sac_off:gliss_off]).any()
