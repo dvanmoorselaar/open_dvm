@@ -1231,7 +1231,11 @@ class TFR(FolderStructure):
                 for f in range(self.num_frex):
                     # convolve and get analytic signal
                     m = self.wavelet_convolution(
-                        x_fft, self.wavelets[f], l_conv, nr_time, nr_epochs,
+                        x_fft,
+                        self.wavelets[f],
+                        l_conv,
+                        nr_time,
+                        nr_epochs,
                         wavelet_fft=wavelet_ffts[f],
                     )
                     # populate output array

@@ -1675,56 +1675,56 @@ class CTF(BDM):
         GAT: bool,
     ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
         """
-                Apply inverted encoding model across all time points.
+        Apply inverted encoding model across all time points.
 
-                Performs forward model analysis for each time sample, with
-                option for Generalization Across Time (GAT) analysis that tests
-                all train/test time combinations or standard diagonal analysis.
+        Performs forward model analysis for each time sample, with
+        option for Generalization Across Time (GAT) analysis that tests
+        all train/test time combinations or standard diagonal analysis.
 
-                Parameters
-                ----------
-                E_train : np.ndarray
-                        Training data with evoked power, shape (trials, channels,
-                        time).
-                E_test : np.ndarray
-                        Test data with evoked power, shape (trials, channels, time).
-                T_train : np.ndarray
-                        Training data with total power, shape (trials, channels,
-                        time).
-                T_test : np.ndarray
-                        Test data with total power, shape (trials, channels, time).
-                C1 : np.ndarray
-                        Spatial basis function matrix, shape (channels,
-                        spatial_bins).
-                GAT : bool
-                        Whether to perform Generalization Across Time analysis:
-                        - True: Test all train/test time combinations (full matrix)
-                        - False: Test only matching time points (diagonal only)
+        Parameters
+        ----------
+        E_train : np.ndarray
+                Training data with evoked power, shape (trials, channels,
+                time).
+        E_test : np.ndarray
+                Test data with evoked power, shape (trials, channels, time).
+        T_train : np.ndarray
+                Training data with total power, shape (trials, channels,
+                time).
+        T_test : np.ndarray
+                Test data with total power, shape (trials, channels, time).
+        C1 : np.ndarray
+                Spatial basis function matrix, shape (channels,
+                spatial_bins).
+        GAT : bool
+                Whether to perform Generalization Across Time analysis:
+                - True: Test all train/test time combinations (full matrix)
+                - False: Test only matching time points (diagonal only)
 
-                Returns
-                -------
-                C2_E : np.ndarray
-                        Reconstructed channel responses from evoked power analysis.
-                        Shape depends on GAT: (time, bins, channels) or
-                        (time, time, bins, channels).
-                W_E : np.ndarray
-                        Weight matrices from evoked power analysis.
-                        Shape depends on GAT: (time, bins, electrodes) or
-                        (time, time, bins, electrodes).
-                C2_T : np.ndarray
-                        Reconstructed channel responses from total power analysis.
-                        Same shape structure as C2_E.
-                W_T : np.ndarray
-                        Weight matrices from total power analysis.
-                        Same shape structure as W_E.
+        Returns
+        -------
+        C2_E : np.ndarray
+                Reconstructed channel responses from evoked power analysis.
+                Shape depends on GAT: (time, bins, channels) or
+                (time, time, bins, channels).
+        W_E : np.ndarray
+                Weight matrices from evoked power analysis.
+                Shape depends on GAT: (time, bins, electrodes) or
+                (time, time, bins, electrodes).
+        C2_T : np.ndarray
+                Reconstructed channel responses from total power analysis.
+                Same shape structure as C2_E.
+        W_T : np.ndarray
+                Weight matrices from total power analysis.
+                Same shape structure as W_E.
 
-                Notes
-                -----
-                This function applies the forward model (see `forward_model`
-                method) to every time point in the analysis window. For GAT
-                analysis, it creates a full time x time matrix showing how well
-                models trained at each timepoint generalize to every other time
-                point.
+        Notes
+        -----
+        This function applies the forward model (see `forward_model`
+        method) to every time point in the analysis window. For GAT
+        analysis, it creates a full time x time matrix showing how well
+        models trained at each timepoint generalize to every other time
+        point.
         """
 
         # set necessary parameters
