@@ -13,7 +13,6 @@ import pickle
 
 import mne
 import numpy as np
-import pandas as pd
 
 
 def write_epochs(

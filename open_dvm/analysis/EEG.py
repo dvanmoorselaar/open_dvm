@@ -50,7 +50,6 @@ Created by Dirk van Moorselaar on 10-03-2015.
 Copyright (c) 2015 DvM. All rights reserved.
 """
 
-import copy
 import glob
 import os
 import platform
@@ -60,14 +59,14 @@ import time
 import warnings
 from contextlib import redirect_stdout
 from math import ceil, floor, sqrt
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union
 
 import matplotlib.pyplot as plt
 import mne
 import numpy as np
 import pandas as pd
 import seaborn as sns
-from autoreject import AutoReject, Ransac, get_rejection_threshold
+from autoreject import get_rejection_threshold
 from mne import BaseEpochs
 from mne.filter import filter_data
 from mne.io import BaseRaw
@@ -1180,7 +1179,7 @@ class Epochs(mne.Epochs, BaseEpochs, FolderStructure):
         if len(df) == 0:
             # Debug: print what's being searched for
             beh_folder = self.folder_tracker(ext=["behavioral", "raw"], fname="")
-            print(f"DEBUG: No behavioral files found")
+            print("DEBUG: No behavioral files found")
             print(f"DEBUG: Searched in folder: {beh_folder}")
             print(f"DEBUG: Looking for subject {self.sj}, session {self.session}")
             print(f"DEBUG: Pattern: sub_{self.sj}_ses_{self.session}*.csv")
@@ -1340,9 +1339,9 @@ class Epochs(mne.Epochs, BaseEpochs, FolderStructure):
                     f"data<br>"
                 )
                 report_str += (
-                    f"&nbsp;&nbsp;&nbsp;⚠ See terminal "
-                    f"output and HTML report (eeg/reports/) "
-                    f"for details<br>"
+                    "&nbsp;&nbsp;&nbsp;⚠ See terminal "
+                    "output and HTML report (eeg/reports/) "
+                    "for details<br>"
                 )
                 nr_miss = 0
 
@@ -1648,7 +1647,7 @@ class Epochs(mne.Epochs, BaseEpochs, FolderStructure):
 
             # save eye data
             report_str += f"&nbsp;&nbsp;&nbsp;✓ Linked {bins.size} " f"eye epochs to EEG<br>"
-            report_str += f"&nbsp;&nbsp;&nbsp;• Eye data saved to: eye/processed/<br>"
+            report_str += "&nbsp;&nbsp;&nbsp;• Eye data saved to: eye/processed/<br>"
             np.savez(
                 self.folder_tracker(
                     ext=["eye", "processed"], fname=f"sub_{self.sj}_ses_{self.session}_xy_eye.npz"

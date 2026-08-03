@@ -73,7 +73,6 @@ from typing import Optional, Tuple, Union
 
 import numpy as np
 import pandas as pd
-from numpy.lib.npyio import NpzFile
 from scipy.signal import savgol_filter
 
 from open_dvm.support.eye_readers import (
@@ -405,7 +404,7 @@ class EYE(FolderStructure):
                 df = df[np.array(eye_mask)]
         elif nr_miss > 0:
             print(f"Trials in beh and eye do not match. Final {nr_miss}")
-            print(f" removed from eye. Please inspect data carefully")
+            print(" removed from eye. Please inspect data carefully")
             eye = eye[:-nr_miss]
             trial_info = trial_info[:-nr_miss]
 
@@ -1276,7 +1275,7 @@ class SaccadeDetector(object):
             V, A = self.calc_velocity(x_, y_)
             x_, y_, V, A = self.noise_detect(x_, y_, V, A)
             self.estimate_thresh(V)
-            if self.peak_thresh != None:
+            if self.peak_thresh is not None:
                 sacc[i] = self.saccade_detection(V, output=output)
             else:
                 sacc[i] = np.nan
@@ -1337,8 +1336,8 @@ class SaccadeDetector(object):
 
         # calculate the velocity and acceleration
         try:
-            x_ = savgol_filter(x, F, N, deriv=0)
-            y_ = savgol_filter(y, F, N, deriv=0)
+            savgol_filter(x, F, N, deriv=0)
+            savgol_filter(y, F, N, deriv=0)
         except:
             return np.zeros(x.size), np.zeros(x.size)
 

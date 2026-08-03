@@ -32,7 +32,6 @@ from typing import Optional, Tuple, Union
 import mne
 import numpy as np
 import pandas as pd
-from IPython import embed
 from numpy.lib.npyio import NpzFile
 
 from open_dvm.support.preprocessing_utils import get_time_slice
@@ -198,7 +197,7 @@ def exclude_eye(
         else:
             warnings.warn("No eye tracker data found, \n" "skipping eye tracker based exclusion")
             perc_tracker = "no tracker data found"
-            tracker_bins = np.full(beh.shape[0], np.nan)
+            tracker_bins = np.full(df.shape[0], np.nan)
 
     # apply step algorhytm to trials with missing data
     nan_idx = np.where(np.isnan(tracker_bins) > 0)[0]

@@ -9,9 +9,7 @@ from typing import List, Optional, Tuple, Union
 
 import matplotlib
 import matplotlib.colors as mcolors
-import matplotlib.pyplot as plt
 import numpy as np
-from matplotlib.colors import Normalize
 
 
 def shifted_color_map(cmap, min_val, max_val, name):

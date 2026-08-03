@@ -1,8 +1,5 @@
 import warnings
 from typing import (
-    Any,
-    Dict,
-    Generic,
     List,
     Optional,
     Tuple,
@@ -1053,7 +1050,7 @@ def plot_erp_timecourse(
     time_diff = np.diff(times).mean()
     if time_diff < 0.1:  # If average difference < 0.1, assume seconds
         times = times * 1000
-        print(f"Times converted from seconds to milliseconds")
+        print("Times converted from seconds to milliseconds")
         if window_oi is not None:
             # window_oi is typed as a tuple; list + tuple concatenation
             # would raise, so coerce the trailing elements explicitly
@@ -1456,7 +1453,7 @@ def plot_tfr_timecourse(
     time_diff = np.diff(times).mean()
     if time_diff < 0.1:  # If average difference < 0.1, assume seconds
         times = times * 1000
-        print(f"Times converted from seconds to milliseconds")
+        print("Times converted from seconds to milliseconds")
 
     color_idx = 0
     for cnd in cnds:
@@ -1869,7 +1866,7 @@ def plot_bdm_timecourse(
     time_diff = np.diff(times).mean()
     if time_diff < 0.1:  # If average difference < 0.1, assume seconds
         times = times * 1000
-        print(f"Times converted from seconds to milliseconds")
+        print("Times converted from seconds to milliseconds")
 
     if cnds is None:
         cnds = [key for key in bdms[0] if "info" not in key]
@@ -2296,7 +2293,7 @@ def plot_ctf_timecourse(
     time_diff = np.diff(times).mean()
     if time_diff < 0.1:  # If average difference < 0.1, assume seconds
         times = times * 1000
-        print(f"Times converted from seconds to milliseconds")
+        print("Times converted from seconds to milliseconds")
 
     if cnds is None:
         cnds = [key for key in ctfs[0] if "info" not in key]

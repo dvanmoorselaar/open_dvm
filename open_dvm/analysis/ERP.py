@@ -48,27 +48,20 @@ Created by Dirk van Moorselaar on 01-07-2015.
 Copyright (c) 2015 DvM. All rights reserved.
 """
 
-import copy
-import math
-import os
 import pickle
 import warnings
 from itertools import combinations
-from typing import Any, Generic, Optional, Tuple, Union
+from typing import Optional, Tuple, Union
 
 import mne
 import numpy as np
 import pandas as pd
-from IPython import embed
-from scipy.fftpack import fft, ifft
-from scipy.signal import butter, freqz, lfilter
 from sklearn.metrics import auc
 
 from open_dvm.support.FolderStructure import *
 from open_dvm.support.preprocessing_utils import (
     format_subject_id,
     get_time_slice,
-    select_electrodes,
     trial_exclusion,
 )
 
@@ -883,7 +876,7 @@ class ERP(FolderStructure):
                     "electrodes will not be flipped. Check channel naming."
                 )
 
-        idx_l = np.hstack([np.where(df[header] == l)[0] for l in left])
+        idx_l = np.hstack([np.where(df[header] == lbl)[0] for lbl in left])
 
         # left stimuli are flipped as if presented right
         pre_flip = np.copy(epochs._data[idx_l][:, picks])
@@ -1042,7 +1035,7 @@ class ERP(FolderStructure):
 
         # select all lateralized trials
         ((header, labels),) = pos_labels.items()
-        idx = np.hstack([np.where(df[header] == l)[0] for l in labels])
+        idx = np.hstack([np.where(df[header] == lbl)[0] for lbl in labels])
 
         # apply spatial restriction filter (AND logic between keys)
         if spatial_restriction is not None:
@@ -1318,7 +1311,7 @@ class ERP(FolderStructure):
         """
 
         # set params
-        if type(erps) == dict:
+        if isinstance(erps, dict):
             channels = list(erps.items())[0][1][0].ch_names
             times = list(erps.items())[0][1][0].times
         else:
@@ -1791,10 +1784,10 @@ class ERP(FolderStructure):
         """
 
         channels, times = ERP.get_erp_params(erps)
-        if type(elec_oi[0]) == str:
+        if isinstance(elec_oi[0], str):
             ch_idx = [channels.index(elec) for elec in elec_oi]
             x = np.stack([evoked._data[ch_idx] for evoked in erps])
-        elif type(elec_oi[0]) == list:
+        elif isinstance(elec_oi[0], list):
             contra_idx = [channels.index(elec) for elec in elec_oi[0]]
             contra = np.stack([evoked._data[contra_idx] for evoked in erps])
             ipsi_idx = [channels.index(elec) for elec in elec_oi[1]]
@@ -1900,10 +1893,10 @@ class ERP(FolderStructure):
         """
 
         # set params
-        if type(erps) == dict:
+        if isinstance(erps, dict):
             pairs = list(combinations(erps.keys(), 2))
             times = erps[pairs[0][0]][0].times
-        elif type(erps) == list:
+        elif isinstance(erps, list):
             pairs = [""]
 
         # set window of interest
@@ -1916,12 +1909,12 @@ class ERP(FolderStructure):
         for p, pair in enumerate(pairs):
             print(f"Contrasting {pair} using jackknife method")
 
-            if type(erps) == dict:
+            if isinstance(erps, dict):
                 x1 = ERP.select_waveform(erps[pair[0]], elec_oi)[:, window_idx]
                 x2 = ERP.select_waveform(erps[pair[1]], elec_oi)[:, window_idx]
                 cnd1_name = pair[0]
                 cnd2_name = pair[1]
-            elif type(erps) == list:
+            elif isinstance(erps, list):
                 x1 = erps[0][:, window_idx]
                 x2 = erps[1][:, window_idx]
                 cnd1_name = "waveform1"

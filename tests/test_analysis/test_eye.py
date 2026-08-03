@@ -26,7 +26,6 @@ import os
 from math import atan2, degrees
 
 import numpy as np
-import pandas as pd
 import pytest
 
 from open_dvm.analysis.EYE import EYE, SaccadeDetector
@@ -1368,7 +1367,7 @@ class TestDetectEvents:
         )
         mask = sd.detect_events(x0, y0)
         assert mask.shape == (1,)
-        assert mask[0] == True
+        assert mask[0]
 
     @pytest.mark.unit
     def test_dict_output_not_cast_to_bool(self):
@@ -1403,7 +1402,7 @@ class TestDetectEvents:
         y_missing = np.full(n, np.nan)
 
         mask = sd.detect_events(np.vstack([x_clean, x_missing]), np.vstack([y_clean, y_missing]))
-        assert mask[0] == False
+        assert not mask[0]
         assert np.isnan(mask[1])
         # naive docstring-style usage should not be silently inflated
         assert np.nansum(mask) == 0

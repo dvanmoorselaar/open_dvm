@@ -10,8 +10,6 @@ Organization
 - TestPerformStats: group-level statistical testing (perm/ttest/fdr)
 """
 
-import warnings
-
 import numpy as np
 import pytest
 from scipy.stats import t as tdist

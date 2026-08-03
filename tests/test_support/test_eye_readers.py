@@ -14,8 +14,6 @@ Organization
 - TestRegressions: the intentional behavior fix vs. the old library
 """
 
-import warnings
-
 import numpy as np
 import pytest
 

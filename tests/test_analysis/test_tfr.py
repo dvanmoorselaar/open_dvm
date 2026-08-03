@@ -19,11 +19,8 @@ Organization
 - TestRegressions: targeted checks for bugs fixed in this module
 """
 
-import os
-
 import mne
 import numpy as np
-import pandas as pd
 import pytest
 
 from open_dvm.analysis.TFR import TFR

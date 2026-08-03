@@ -34,8 +34,6 @@ Organization
 """
 
 import os
-import pickle
-import tempfile
 import time
 
 import matplotlib
@@ -45,12 +43,12 @@ import pandas as pd
 import pytest
 
 matplotlib.use("Agg")
-from unittest.mock import patch
+from unittest.mock import patch  # noqa: E402
 
-import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt  # noqa: E402
 
-from open_dvm.analysis.EEG import RAW, ArtefactReject, Epochs
-from tests.fixtures.eeg_sample_data import (
+from open_dvm.analysis.EEG import RAW, ArtefactReject  # noqa: E402
+from tests.fixtures.eeg_sample_data import (  # noqa: E402
     make_artefact_epochs,
     make_eog_correlated_raw,
     make_synthetic_epochs,
@@ -1144,7 +1142,7 @@ class TestMarkBads:
         events = ar.mark_bads(Z, z_thresh=5, times=times)
 
         assert len(events) == 1
-        ep, (seg_slice, t_start, t_end, duration) = events[0][0], events[0][1]
+        ep, (seg_slice, t_start, t_end, _) = events[0][0], events[0][1]
         assert ep == 0
         assert seg_slice == slice(3, 6)
         assert t_start == pytest.approx(times[3])

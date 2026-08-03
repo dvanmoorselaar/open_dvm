@@ -44,7 +44,6 @@ from typing import List, Optional, Tuple, Union
 import mne
 import numpy as np
 import pandas as pd
-from IPython import embed
 
 from open_dvm.support.eye_utils import exclude_eye
 from open_dvm.support.preprocessing_utils import (
@@ -449,7 +448,7 @@ class FolderStructure(object):
                     eye_dict["use_tracker"] = temp
 
         # remove a subset of trials
-        if type(excl_factor) == dict:
+        if isinstance(excl_factor, dict):
             df, epochs, _ = trial_exclusion(df, epochs, excl_factor)
 
         return df, epochs

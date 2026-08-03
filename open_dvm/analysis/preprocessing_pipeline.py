@@ -312,7 +312,7 @@ def eeg_preprocessing_pipeline(
 
     EEG.info["bads"] = (
         sj_info["bad_chs"]
-        if type(sj_info["bad_chs"]) == list
+        if isinstance(sj_info["bad_chs"], list)
         else sj_info["bad_chs"][f"session_{session}"]
     )
 

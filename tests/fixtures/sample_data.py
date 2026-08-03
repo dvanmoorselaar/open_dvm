@@ -5,7 +5,7 @@ This module provides utilities for generating synthetic EEG data suitable
 for testing ERP analysis functions.
 """
 
-from typing import Any, Dict, Tuple
+from typing import Dict, Tuple
 
 import mne
 import numpy as np
@@ -69,7 +69,6 @@ def create_sample_epochs(
     info = create_info(ch_names=ch_names, sfreq=sfreq, ch_types="eeg")
 
     # Create Epochs object
-    times = np.linspace(-0.2, 0.4, n_samples)  # -200 to 400 ms
     epochs = EpochsArray(data, info, tmin=-0.2)
 
     return epochs, data

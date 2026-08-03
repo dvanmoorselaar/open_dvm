@@ -4,12 +4,9 @@ Pytest configuration and shared fixtures for open_dvm tests.
 This file defines pytest fixtures and configuration used across all tests.
 """
 
-import os
 import tempfile
-from pathlib import Path
 
 import numpy as np
-import pandas as pd
 import pytest
 
 from tests.fixtures.sample_data import (

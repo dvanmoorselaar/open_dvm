@@ -62,19 +62,13 @@ Copyright (c) 2018 DvM. All rights reserved.
 
 import copy
 import math
-import os
-import pickle
-from typing import Any, Generic, Optional, Tuple, Union
+from typing import Optional, Tuple, Union
 
 import matplotlib.pyplot as plt
 import mne
 import numpy as np
 import pandas as pd
-from IPython import embed
-from mne.baseline import rescale
-from mne.filter import filter_data
-from mne.time_frequency import tfr_array_morlet
-from numpy.fft import fft, ifft, irfft, rfft
+from numpy.fft import fft, ifft
 from scipy.signal import hilbert
 
 from open_dvm.analysis.ERP import ERP
@@ -1077,7 +1071,6 @@ class TFR(FolderStructure):
 
         # get baseline index
         times = epochs.times
-        nr_time = times.size
         if self.baseline is not None:
             base = {}
             s, e = self.baseline

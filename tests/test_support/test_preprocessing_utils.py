@@ -16,7 +16,6 @@ Organization
 """
 
 import json
-import warnings
 
 import mne
 import numpy as np
@@ -401,7 +400,7 @@ class TestCreateCndLoop:
         for query, name in filters:
             matched = df.query(query)
             assert len(matched) == 1
-            expected_row_id = names_to_row = {
+            expected_row_id = {
                 "left_valid": 0,
                 "left_invalid": 1,
                 "right_valid": 2,

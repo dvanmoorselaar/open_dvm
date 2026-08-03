@@ -46,9 +46,7 @@ Created by Dirk van Moorselaar on 30-03-2016.
 Copyright (c) 2016 DvM. All rights reserved.
 """
 
-import os
 import pickle
-import random
 import warnings
 
 import matplotlib
@@ -56,28 +54,23 @@ import mne
 
 matplotlib.use("agg")
 
-from math import pi, sqrt
-from typing import Any, Generic, Optional, Tuple, Union
+from math import pi  # noqa: E402
+from typing import Optional, Tuple, Union  # noqa: E402
 
-import matplotlib.pyplot as plt
-import numpy as np
-import pandas as pd
-from IPython import embed
-from matplotlib import cm
-from mne.filter import filter_data
-from scipy.optimize import curve_fit
-from scipy.signal import hilbert
+import matplotlib.pyplot as plt  # noqa: E402
+import numpy as np  # noqa: E402
+import pandas as pd  # noqa: E402
+from scipy.optimize import curve_fit  # noqa: E402
+from scipy.signal import hilbert  # noqa: E402
 
-from open_dvm.analysis.BDM import *
-from open_dvm.support.FolderStructure import *
-from open_dvm.support.preprocessing_utils import (
-    baseline_correction,
-    format_subject_id,
+from open_dvm.analysis.BDM import *  # noqa: E402
+from open_dvm.support.FolderStructure import *  # noqa: E402
+from open_dvm.support.preprocessing_utils import (  # noqa: E402
     get_time_slice,
     select_electrodes,
     trial_exclusion,
 )
-from open_dvm.visualization.plot import plot_ctf_timecourse
+from open_dvm.visualization.plot import plot_ctf_timecourse  # noqa: E402
 
 
 class CTF(BDM):
@@ -565,7 +558,7 @@ class CTF(BDM):
                     report.add_figure(
                         fig,
                         title=f"Channel response {to}: {cnd}",
-                        caption=f"CTF tuning function over time",
+                        caption="CTF tuning function over time",
                     )
                     plt.close()
 
@@ -827,7 +820,7 @@ class CTF(BDM):
         if collapse:
             pass  # 'collapse' is under development and currently a no-op
 
-        if type(cnds) == dict:
+        if isinstance(cnds, dict):
             train_cnds, test_cnds = self.check_cnds_input(cnds)
 
             if test_cnds is not None:
@@ -1244,7 +1237,7 @@ class CTF(BDM):
         """
 
         ((_, cnds_oi),) = cnds.items()
-        if type(cnds_oi[0]) == list:
+        if isinstance(cnds_oi[0], list):
             train_cnds, test_cnds = cnds_oi
             if isinstance(test_cnds, str):
                 # be forgiving of a bare string for a single test
@@ -2048,7 +2041,7 @@ class CTF(BDM):
             elif self.freq_scaling == "linear":
                 frex = np.linspace(self.min_freq, self.max_freq, self.num_frex)
             frex = [(frex[i], frex[i + 1]) for i in range(self.num_frex - 1)]
-        elif type(freqs) == dict:
+        elif isinstance(freqs, dict):
             frex = [
                 (freqs[band][0], freqs[band][1])
                 for band in sorted(freqs.keys(), key=lambda k: freqs[k][0])
@@ -2134,13 +2127,11 @@ class CTF(BDM):
 
         ctf, info = {}, {}
         freqs, nr_freqs, _ = self.set_frequencies(freqs)
-        data_type = "power" if freqs != ["broadband"] else "broadband"
 
-        if type(te_cnds) == dict:
-            ((cnd_header, test_cnds),) = te_cnds.items()
+        if isinstance(te_cnds, dict):
+            ((_, test_cnds),) = te_cnds.items()
         else:
             test_cnds = ["all_data"]
-            cnd_header = None
 
         # set train and test data
         pos_bins_tr, _, epochs_tr, _ = self.select_ctf_labels(epochs_tr, df_tr, pos_labels_tr, None)
@@ -2399,12 +2390,10 @@ class CTF(BDM):
         if ctfs.ndim == 3:
             nr_freqs, nr_samples_tr, nr_chan = ctfs.shape
             nr_samples_te = 1
-            GAT = False
             # insert new dimension so that indexing does not crash
             ctfs = ctfs[..., np.newaxis, :]
         else:
             nr_freqs, nr_samples_tr, nr_samples_te, nr_chan = ctfs.shape
-            GAT = True
 
         # Extract CTF parameters for each frequency and time point
         for freq_idx in range(nr_freqs):

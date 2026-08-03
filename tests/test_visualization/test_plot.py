@@ -21,15 +21,15 @@ from unittest.mock import patch
 import matplotlib
 
 matplotlib.use("Agg")
-import matplotlib.colors as mcolors
-import matplotlib.pyplot as plt
-import mne
-import numpy as np
-import pytest
-from scipy.signal import savgol_filter
+import matplotlib.colors as mcolors  # noqa: E402
+import matplotlib.pyplot as plt  # noqa: E402
+import mne  # noqa: E402
+import numpy as np  # noqa: E402
+import pytest  # noqa: E402
+from scipy.signal import savgol_filter  # noqa: E402
 
-import open_dvm.visualization.plot as plotmod
-from open_dvm.visualization.plot import (
+import open_dvm.visualization.plot as plotmod  # noqa: E402
+from open_dvm.visualization.plot import (  # noqa: E402
     _get_continuous_segments,
     plot_2d,
     plot_bdm_timecourse,
@@ -41,13 +41,13 @@ from open_dvm.visualization.plot import (
     plot_timecourse,
     plot_topography,
 )
-from tests.fixtures.plot_sample_data import (
+from tests.fixtures.plot_sample_data import (  # noqa: E402
     make_average_tfr,
     make_bdm_result,
     make_condition_evokeds,
     make_ctf_result,
 )
-from tests.fixtures.sample_data import create_biosemi64_evoked_pair
+from tests.fixtures.sample_data import create_biosemi64_evoked_pair  # noqa: E402
 
 
 @pytest.fixture(autouse=True)
@@ -246,7 +246,6 @@ class TestPlot2D:
     @pytest.mark.unit
     def test_set_y_ticks_false_skips_tick_customization(self):
         Z = np.zeros((6, 10))
-        default_ticks = None
         plot_2d(Z, y_val=np.geomspace(1, 30, 6), set_y_ticks=False)
         # should not force log scale when tick customization is skipped
         assert plt.gca().get_yscale() == "linear"
@@ -627,7 +626,7 @@ class TestPlotErpTimecourse:
 
         plot_erp_timecourse(erps, times, elec_oi=[["C3"], ["C4"]])
 
-        labels = [l.get_label() for l in plt.gca().get_lines()]
+        labels = [line.get_label() for line in plt.gca().get_lines()]
         assert "A contra" in labels
         assert "A ipsi" in labels
 
@@ -667,7 +666,9 @@ class TestPlotErpTimecourse:
 
         # exclude the default (unlabeled) zero-line/onset-marker reference lines
         colors_used = [
-            l.get_color() for l in plt.gca().get_lines() if not l.get_label().startswith("_")
+            line.get_color()
+            for line in plt.gca().get_lines()
+            if not line.get_label().startswith("_")
         ]
         assert colors_used == ["red", "green", "blue", "orange"]
 
@@ -707,9 +708,9 @@ class TestPlotErpTimecourse:
         plot_erp_timecourse(erps, times, elec_oi=["C3"], onset_times=[0])
 
         vlines = [
-            l
-            for l in plt.gca().get_lines()
-            if len(set(l.get_xdata())) == 1 and l.get_xdata()[0] == 0
+            line
+            for line in plt.gca().get_lines()
+            if len(set(line.get_xdata())) == 1 and line.get_xdata()[0] == 0
         ]
         assert len(vlines) >= 1
 
@@ -734,7 +735,11 @@ class TestPlotErpTimecourse:
 
         plot_erp_timecourse(evokeds, times, elec_oi=["C3"])
 
-        labels = [l.get_label() for l in plt.gca().get_lines() if not l.get_label().startswith("_")]
+        labels = [
+            line.get_label()
+            for line in plt.gca().get_lines()
+            if not line.get_label().startswith("_")
+        ]
         assert labels == ["temp"]
 
     @pytest.mark.unit
@@ -749,12 +754,15 @@ class TestPlotErpTimecourse:
 
         plot_erp_timecourse(erps, times, elec_oi=["C3"], cnds=["A"])
 
-        labels = [l.get_label() for l in plt.gca().get_lines() if not l.get_label().startswith("_")]
+        labels = [
+            line.get_label()
+            for line in plt.gca().get_lines()
+            if not line.get_label().startswith("_")
+        ]
         assert labels == ["A"]
 
     @pytest.mark.unit
     def test_cnd_diff_marks_significant_window_and_auto_colors(self):
-        rng = np.random.default_rng(0)
         ch_names = ["C3"]
         n_sub, n_t = 20, 60
         sfreq, tmin = 100.0, -0.1
@@ -913,9 +921,9 @@ class TestPlotTfrTimecourse:
         )
 
         vlines = [
-            l
-            for l in plt.gca().get_lines()
-            if len(set(l.get_xdata())) == 1 and l.get_xdata()[0] == 0
+            line
+            for line in plt.gca().get_lines()
+            if len(set(line.get_xdata())) == 1 and line.get_xdata()[0] == 0
         ]
         assert len(vlines) >= 1
 
@@ -960,7 +968,6 @@ class TestPlotTfrTimecourse:
     def test_contour_respects_mask_nonsig(self):
         # regression: the old bespoke contour branch ignored significance
         # masking entirely; now it's forwarded through plot_2d
-        tfr = make_average_tfr(ch_names=["C3"], n_samples=30, amplitude_by_channel={"C3": 1.0})
         tfr_dict = {
             "A": [
                 make_average_tfr(ch_names=["C3"], n_samples=30, amplitude_by_channel={"C3": 1.0})
@@ -1189,9 +1196,9 @@ class TestPlotBdmTimecourse:
         plot_bdm_timecourse(bdms, timecourse="1d", chance_level=0.5, stats=False)
 
         hlines = [
-            l
-            for l in plt.gca().get_lines()
-            if len(set(l.get_ydata())) == 1 and l.get_ydata()[0] == 0.5
+            line
+            for line in plt.gca().get_lines()
+            if len(set(line.get_ydata())) == 1 and line.get_ydata()[0] == 0.5
         ]
         assert len(hlines) == 1
 
@@ -1416,7 +1423,7 @@ class TestPlotCtfTimecourse:
 
         plot_ctf_timecourse(ctfs, timecourse="1d", output="raw_slopes", stats=False)
 
-        bin_lines = [l for l in plt.gca().get_lines() if "bin_" in l.get_label()]
+        bin_lines = [line for line in plt.gca().get_lines() if "bin_" in line.get_label()]
         assert len(bin_lines) == 6
 
     @pytest.mark.unit
@@ -1465,7 +1472,6 @@ class TestPlotCtfTimecourse:
     @pytest.mark.unit
     def test_ttest_stats_2d_gat_no_crash(self):
         # regression: plot_significance used to crash on a dead p_vals kwarg
-        rng = np.random.default_rng(0)
         times = np.linspace(-0.1, 0.5, 15)
         raw = np.full((1, 15), 0.3)
         ctfs = make_ctf_result(raw, times=times, bands=["all"], n_subjects=12, noise_sd=0.2, seed=1)
@@ -1523,7 +1529,9 @@ class TestPlotCtfTimecourse:
         )
 
         labels = sorted(
-            l.get_label() for l in plt.gca().get_lines() if not l.get_label().startswith("_")
+            line.get_label()
+            for line in plt.gca().get_lines()
+            if not line.get_label().startswith("_")
         )
         assert labels == ["A - param_slopes", "A - raw_slopes"]
 
@@ -1621,7 +1629,7 @@ class TestPlotCtfTimecourse:
 
         plot_ctf_timecourse(ctfs, timecourse="1d", output="raw_slopes", stats=False)
 
-        bin_lines = [l for l in plt.gca().get_lines() if "bin_" in l.get_label()]
+        bin_lines = [line for line in plt.gca().get_lines() if "bin_" in line.get_label()]
         assert len(bin_lines) == 12
 
     @pytest.mark.unit

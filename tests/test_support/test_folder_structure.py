@@ -17,22 +17,13 @@ Organization
 
 import importlib
 import os
-import pickle
 from unittest.mock import patch
 
-import mne
 import numpy as np
 import pandas as pd
 import pytest
 
 from open_dvm.support.FolderStructure import FolderStructure, blockPrinting
-
-# open_dvm/support/__init__.py does `from ...FolderStructure import FolderStructure`,
-# which shadows the FolderStructure *module* attribute on the package with the
-# *class* of the same name. `import ... as fs_module` chases that shadowed
-# attribute, so importlib.import_module is used here to get the real module.
-fs_module = importlib.import_module("open_dvm.support.FolderStructure")
-
 from tests.fixtures.folder_structure_sample_data import (
     make_evoked,
     make_tfr,
@@ -44,6 +35,12 @@ from tests.fixtures.folder_structure_sample_data import (
     write_raw_beh,
     write_tfr,
 )
+
+# open_dvm/support/__init__.py does `from ...FolderStructure import FolderStructure`,
+# which shadows the FolderStructure *module* attribute on the package with the
+# *class* of the same name. `import ... as fs_module` chases that shadowed
+# attribute, so importlib.import_module is used here to get the real module.
+fs_module = importlib.import_module("open_dvm.support.FolderStructure")
 
 # ============================================================================
 # _extract_subject_number

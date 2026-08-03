@@ -101,7 +101,6 @@ def read_edf(filename, start, stop=None, trial_info=None, missing=0.0):
     data = []
     trial_nr = []
     trial = _new_trial()
-    starttime = 0
     started = False
     finalline = raw[-1] if raw else ""
 
@@ -125,7 +124,6 @@ def read_edf(filename, start, stop=None, trial_info=None, missing=0.0):
         else:
             if start in line:
                 started = True
-                starttime = int(line[line.find("\t") + 1 : line.find(" ")])
 
         if started:
             if line[0:3] == "MSG":

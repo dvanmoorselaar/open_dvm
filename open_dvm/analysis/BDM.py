@@ -44,11 +44,10 @@ support.FolderStructure : Base class for file organization
 
 import copy
 import itertools
-import os
 import pickle
 import random
 import warnings
-from typing import Any, Generic, List, Optional, Tuple, Union
+from typing import Any, List, Optional, Tuple, Union
 
 import matplotlib.pyplot as plt
 import mne
@@ -972,12 +971,11 @@ class BDM(FolderStructure):
             tr_idx = get_time_slice(times, tr_window[0], tr_window[1])
             te_idx = get_time_slice(times, te_window[0], te_window[1])
         else:  # full GAT or standard decoding
-            window_oi = times[[0, -1]]
             tr_idx = get_time_slice(times, times[0], times[-1])
             te_idx = tr_idx
 
         nr_train = tr_idx.stop - tr_idx.start
-        if GAT == False:
+        if GAT is False:
             nr_test = 1
         else:
             nr_test = te_idx.stop - te_idx.start
@@ -1110,9 +1108,6 @@ class BDM(FolderStructure):
         bdm_scores = {"info": {"elec": self.elec_oi, "times_oi": (nr_time_tr, nr_time_te)}}
         bdm_params = {}
 
-        _, label_counts = np.unique(y_te, return_counts=True)
-        nr_tests = min(label_counts) * np.unique(y_te).size
-
         nr_elec = X_tr.shape[1]
 
         # first round of classification is always done on non-permuted labels
@@ -1166,7 +1161,6 @@ class BDM(FolderStructure):
                 for i, n in enumerate([1]):
                     if i > 0:
                         print(f"Minimum condition label downsampled to {n}")
-                        bdm_info = {}
 
                     # select train and test trials
                     self.run_info = 1
@@ -1704,7 +1698,6 @@ class BDM(FolderStructure):
         # plot topography
         if plot_topographies:
             print("Preparing topographical plotting setup...")
-            sfreq = epochs_obj.info["sfreq"]
             info = mne.create_info(
                 ch_names=montage.ch_names,
                 sfreq=min(epochs_obj.info["sfreq"], self.downsample),
@@ -2425,7 +2418,7 @@ class BDM(FolderStructure):
 
         # select train data and labels
         tr_idx = np.hstack(
-            [random.sample(list(np.where(tr_labels == l)[0]), k=max_tr) for l in labels]
+            [random.sample(list(np.where(tr_labels == lbl)[0]), k=max_tr) for lbl in labels]
         )
         Ytr = tr_labels[tr_idx]
 
@@ -2451,7 +2444,9 @@ class BDM(FolderStructure):
                 max_tr = min(label_counts)
 
             # select test data and labels
-            te_idx = [random.sample(list(np.where(test_labels == l)[0]), k=max_tr) for l in labels]
+            te_idx = [
+                random.sample(list(np.where(test_labels == lbl)[0]), k=max_tr) for lbl in labels
+            ]
             te_idx = np.hstack(te_idx)
             Yte = test_labels[te_idx]
 
@@ -3068,7 +3063,7 @@ class BDM(FolderStructure):
         if self.metric == "auc":
 
             # shift true_scores to indices
-            true_labels = np.array([list(label_order).index(l) for l in true_labels])
+            true_labels = np.array([list(label_order).index(lbl) for lbl in true_labels])
             # check whether it is a more than two class problem
             if scores.ndim > 1:
                 nr_class = scores.shape[1]
@@ -3305,7 +3300,7 @@ class BDM(FolderStructure):
 
                 # select condition trials and get their decoding labels
                 trials = np.where(df[cnds_header] == cnd)[0]
-                labels = [l for l in df[self.to_decode][trials] if l in bdm_labels]
+                labels = [lbl for lbl in df[self.to_decode][trials] if lbl in bdm_labels]
 
                 # select the minimum number of trials per label for
                 # BDM procedure (mandatory balancing -- see
@@ -3317,7 +3312,7 @@ class BDM(FolderStructure):
 
             max_trials = min(cnd_min)
         elif cnds == ["all_data"]:
-            labels = [l for l in df[self.to_decode] if l in bdm_labels]
+            labels = [lbl for lbl in df[self.to_decode] if lbl in bdm_labels]
             min_tr = np.unique(labels, return_counts=True)[1]
             max_trials = int(np.floor(min(min_tr) / N) * N)
 
