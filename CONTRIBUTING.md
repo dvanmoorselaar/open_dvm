@@ -40,7 +40,7 @@ black open_dvm tests
 isort open_dvm tests
 ```
 
-`flake8` and `mypy` configs are also present for anyone who wants to use them locally, but aren't enforced yet -- there's a real backlog of `mypy` type errors and non-formatting `flake8` issues that hasn't been triaged. **`black`/`isort` are not currently enforced in CI either** (only the test suite runs), so please run them locally before opening a PR rather than relying on CI to catch drift.
+**`black`/`isort` are enforced in CI** (a `lint` job runs `black --check` and `isort --check` on every PR). `flake8` and `mypy` configs are also present (`.flake8`, `[tool.mypy]` in `pyproject.toml`) for anyone who wants to run them locally, but aren't enforced yet -- there's a real backlog of `mypy` type errors and non-formatting `flake8` issues that hasn't been triaged.
 
 For file and folder naming conventions (raw/processed data layout, subject/session naming, etc.), see [NAMING_CONVENTIONS.md](NAMING_CONVENTIONS.md).
 
