@@ -1073,7 +1073,7 @@ class TFR(FolderStructure):
             idx = np.arange(len(df))
         else:
             raise TypeError(f"pos_labels must be a dict or None, \
-							got {type(pos_labels).__name__}")
+                            got {type(pos_labels).__name__}")
 
         # get baseline index
         times = epochs.times
@@ -1565,7 +1565,7 @@ class TFR(FolderStructure):
         Computes lateralization index (LI) for each frequency band and
         sample per condition. It is assumed that all stimuli of interest
         are presented with the same lateralization (i.e., all left or
-        all	right), ot this is set artificially via topo_flip.
+        all right), ot this is set artificially via topo_flip.
 
         The lateralization index is computed as follows:
 

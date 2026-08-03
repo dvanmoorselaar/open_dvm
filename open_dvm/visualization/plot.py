@@ -1844,7 +1844,7 @@ def plot_bdm_timecourse(
 
         >>> bdm = {'cond_A': {'dec_scores': gat_matrix},
         ...        'info': {'times': train_times,
-        ...		   'test_times': test_times}}
+        ...     'test_times': test_times}}
         >>> plot_bdm_timecourse(bdm, timecourse='2d_GAT',
         ...                     mask_nonsig=True, diverging_cmap=True)
 

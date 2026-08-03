@@ -576,7 +576,7 @@ class EYE(FolderStructure):
         ...     interpolate_blinks=True
         ... )
         >>> print(f'Shape: {x.shape},
-        ...		Time range: {times[0]}-{times[-1]}ms')
+        ...  Time range: {times[0]}-{times[-1]}ms')
         """
 
         times = np.arange(start, end, 1000 / self.sfreq)
@@ -853,7 +853,7 @@ class EYE(FolderStructure):
         >>> # Bin trials by deviations 0-3° in 0.25° steps
         >>> # Require 40ms sustained deviation
         >>> bins, angles = eye_obj.create_angle_bins(
-        ... 	x, y, start=0, stop=3, step=0.25, min_segment=40
+        ...  x, y, start=0, stop=3, step=0.25, min_segment=40
         ... )
         >>> print(f'Trial 1 max bin: {bins[0]:.2f}°')
         >>> print(f'Trial 1 mean angle: {np.nanmean(angles[0]):.2f}°')
@@ -1176,7 +1176,7 @@ class SaccadeDetector(object):
     >>> # Detect saccades in eye tracker data
     >>> detector = SaccadeDetector(sfreq=1000)
     >>> saccade_mask = detector.detect_events(x_coords, y_coords,
-    ... 										output='mask')
+    ...           output='mask')
     >>> print(f'Found {saccade_mask.sum()} saccades')
     """
 
@@ -1633,7 +1633,7 @@ class SaccadeDetector(object):
         >>> detector.estimate_thresh(V)
         >>> sac_dict = detector.saccade_detection(V, output='dict')
         >>> print(f'Saccade 1: onset={sac_dict[\"1\"][0]},
-        ...			offset={sac_dict[\"1\"][1]}')
+        ...   offset={sac_dict[\"1\"][1]}')
         """
 
         # create array to store indices of detected saccades and glissades

@@ -1787,7 +1787,7 @@ class BDM(FolderStructure):
         >>> bdm.classifier = 'SVM'
         >>> path_components = bdm.set_folder_path()
         >>> path_components  # ['bdm', 'stimulus', 'all_elecs', 'cross',
-        ...						'SVM']
+        ...      'SVM']
 
         Posterior electrode selection:
 
@@ -1803,7 +1803,7 @@ class BDM(FolderStructure):
             base += ["cross"]
 
         # if self.bdm_type != 'broad':
-        # 	base += [self.classifier]
+        #  base += [self.classifier]
 
         if self.classifier != "LDA":
             base += [self.classifier]
@@ -1975,7 +1975,7 @@ class BDM(FolderStructure):
         >>> epochs.get_data().shape  # (8, 64, 240)
         >>> bdm.tr_avg = 3
         >>> epochs_avg, df_avg = bdm.average_trials(epochs, df,
-        ...													['label'])
+        ...             ['label'])
         >>> epochs_avg.get_data().shape  # (4, 64, 240)
 
         Warnings
@@ -2405,12 +2405,12 @@ class BDM(FolderStructure):
         >>> Xtr, Xte, Ytr, Yte = bdm.train_test_cross(
         ...     X, y, train_idx, test_idx)
         >>> Xtr.shape  # (n_folds, n_trials_per_class*n_classes,
-        ...  				n_channels, n_times)
+        ...      n_channels, n_times)
 
         Training-only preparation:
 
         >>> Xtr, _, Ytr, _ = bdm.train_test_cross(X, y, train_idx,
-        ...     												False)
+        ...                 False)
         >>> Xte.size == 0  # True - no test data prepared
         """
 
@@ -2540,17 +2540,17 @@ class BDM(FolderStructure):
         >>> (Xtr, Xte,
         ... Ytr, Yte) = bdm.train_test_select(X, Y, train_tr, test_tr)
         >>> Xtr.shape  # (10, 36, 64, 500) - folds, total_train_trials,
-        ... 								channels, times
+        ...         channels, times
         >>> Ytr.shape  # (10, 36) - folds, total_train_trials
 
         Time-frequency data (4D):
 
         >>> X.shape  # (5, 200, 64, 500) - freqs, trials,
-        ... 								channels, times
+        ...         channels, times
         >>> Xtr, Xte, Ytr, Yte = bdm.train_test_select(X, Y, train_tr,
-        ... 													test_tr)
+        ...              test_tr)
         >>> Xtr.shape  # (10, 5, 36, 64, 500) - folds, freqs, trials,
-        ... 											channels, times
+        ...            channels, times
         """
 
         # initialize train and test label arrays
@@ -3037,7 +3037,7 @@ class BDM(FolderStructure):
         >>> predict = np.array(['A', 'B', 'A'])
         >>> bdm.metric = 'auc'
         >>> perf = bdm.compute_class_perf(scores, true_labels,
-        ... 	label_order, predict)
+        ...  label_order, predict)
         >>> perf  # AUC value between 0.5 and 1.0
 
         Multi-class classification with accuracy:
@@ -3047,7 +3047,7 @@ class BDM(FolderStructure):
         >>> predict = np.array(['A', 'B'])
         >>> bdm.metric = 'acc'
         >>> perf = bdm.compute_class_perf(scores, true_labels,
-        ... 	label_order, predict)
+        ...  label_order, predict)
         >>> perf  # 1.0 (perfect accuracy)
 
         Binary classification (1D scores):
@@ -3057,7 +3057,7 @@ class BDM(FolderStructure):
         >>> label_order = [0, 1]
         >>> bdm.metric = 'auc'
         >>> perf = bdm.compute_class_perf(scores, true_labels,
-        ... 	label_order, predict)
+        ...  label_order, predict)
         >>> perf  # Automatically handles 1D to 2D conversion
 
         See Also
@@ -3271,9 +3271,9 @@ class BDM(FolderStructure):
         ...     'right']})
         >>> bdm.nr_folds = 2
         >>> max_trials = bdm.select_max_trials(beh, ['A', 'B'], ['left',
-        ...		'right'])
+        ...  'right'])
         >>> max_trials  # 2 (limited by condition A having only 2
-        ...	  'left' trials)
+        ...   'left' trials)
 
         Use all available data:
 
