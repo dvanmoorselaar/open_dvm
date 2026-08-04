@@ -2081,6 +2081,13 @@ class CTF(BDM):
         GAT: bool = False,
         f_name: str = None,
     ):
+        raise NotImplementedError(
+            "localizer_spatial_ctf is experimental and not yet validated "
+            "for release -- not covered by the accompanying paper or "
+            "tutorials, and CTF.__init__ does not currently support the "
+            "list-based epochs/df it requires. Planned for a future "
+            "release. Use spatial_ctf() for the validated pipeline."
+        )
 
         if self.method == "k-fold":
             raise NotImplementedError(

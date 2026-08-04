@@ -9,6 +9,12 @@ filing an issue.
 
 ## BDM (decoding)
 
+- **`localizer_classify` is deferred, not part of this release** and now
+  raises `NotImplementedError` unconditionally. It's experimental, not
+  covered by the accompanying paper or tutorials -- worked correctly in
+  testing (near-perfect AUC recovery on separable synthetic data, both
+  `GAT=False`/`True`) after four stacked bugs were fixed, but hasn't had
+  the same validation depth as `classify()`. Use `classify()` instead.
 - **`bdm_info` reproducibility metadata is incomplete for some code paths.**
   `classify_`'s cross-condition (`self.cross`) branch only ever sets
   `bdm_info` to an empty placeholder, and `localizer_classify_` never
@@ -58,13 +64,15 @@ filing an issue.
   BDM-style pre-averaging on top would shrink the trial pool feeding that
   resampling loop and could understate variance in the resulting CTF/slope
   estimates -- not necessarily biased, but not verified safe either.
-- **`localizer_spatial_ctf` is deferred, not part of this release.**
-  Beyond the `method='k-fold'` and `nr_perm>0` guards added this release,
-  this function has further unresolved prerequisites: `CTF.__init__`
-  doesn't actually support the list-based `epochs`/`df` this function
-  requires, `basisset` isn't initialized for it, and `train_test_cross`
-  hardcodes a 2-way split that ignores `nr_folds`. Don't use this function
-  yet.
+- **`localizer_spatial_ctf` is deferred, not part of this release** and
+  now raises `NotImplementedError` unconditionally. It's experimental,
+  not covered by the accompanying paper or tutorials, and has further
+  unresolved prerequisites: `CTF.__init__` doesn't actually support the
+  list-based `epochs`/`df` this function requires (passing lists crashes
+  in `__init__` with an unrelated `AttributeError` before ever reaching
+  this function), `basisset` isn't initialized for it, and
+  `train_test_cross` hardcodes a 2-way split that ignores `nr_folds`.
+  Use `spatial_ctf` instead.
 - **`generate_ctf_report` only renders one frequency band per figure.**
   No support for plotting multiple bands from a `freqs` list in a single
   figure.

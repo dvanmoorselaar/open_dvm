@@ -15,12 +15,10 @@ Organization
 - TestFitCosToCtf / TestGaussian / TestFitGaussian: curve fitting
 - TestSpatialCtf: end-to-end pipeline (within-cnd, cross-cnd,
   special_loc, permutation testing, GAT)
+- TestLocalizerSpatialCtf: localizer_spatial_ctf is gated off for this
+  release (see KNOWN_LIMITATIONS.md)
 - TestGenerateCtfReport: HTML report generation
 - TestRegressions: regression tests for bugs found & fixed during review
-
-Note: localizer_spatial_ctf is intentionally NOT tested -- it is
-deferred (not part of this release, per explicit decision) and its
-CTF.__init__ prerequisites (list-based epochs/df) are not supported.
 """
 
 import warnings
@@ -1067,6 +1065,24 @@ class TestSpatialCtf:
             warnings.simplefilter("always")
             ctf.spatial_ctf(freqs="broadband")
         assert not any("shift_bins" in str(w.message) for w in caught)
+
+
+# ============================================================================
+# CTF.localizer_spatial_ctf
+# ============================================================================
+
+
+class TestLocalizerSpatialCtf:
+    @pytest.mark.unit
+    def test_raises_not_implemented(self):
+        """localizer_spatial_ctf is gated off for this release
+        (experimental, not covered by the paper/tutorials, and
+        CTF.__init__ doesn't support the list-based epochs/df it
+        requires -- see KNOWN_LIMITATIONS.md)."""
+        epochs, df = make_spatial_epochs(nr_bins=2, n_ch=2, n_trials_per_bin=4)
+        ctf = make_ctf(epochs, df, nr_bins=2, nr_chans=2)
+        with pytest.raises(NotImplementedError, match="localizer_spatial_ctf is experimental"):
+            ctf.localizer_spatial_ctf()
 
 
 # ============================================================================

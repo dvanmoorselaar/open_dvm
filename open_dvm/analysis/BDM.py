@@ -1220,6 +1220,12 @@ class BDM(FolderStructure):
         nr_perm: int = 0,
         f_name: str = None,
     ):
+        raise NotImplementedError(
+            "localizer_classify is experimental and not yet validated for "
+            "release -- not covered by the accompanying paper or tutorials. "
+            "Planned for a future release. Use classify() for the "
+            "validated decoding pipeline."
+        )
 
         # Always create bdm_name for reporting; use f_name if provided
         if f_name is not None:

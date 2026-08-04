@@ -13,7 +13,8 @@ Organization
 - TestSlidingWindow: temporal feature windowing
 - TestCrossTimeDecoding: core per-timepoint decoding loop (PCA modes, GAT)
 - TestClassifyIntegration: classify() end-to-end with known-separable data
-- TestLocalizerClassifyIntegration: independent train/test set decoding
+- TestLocalizerClassifyIntegration: localizer_classify is gated off for
+  this release (see KNOWN_LIMITATIONS.md)
 - TestIterClassify: split-factor iterative decoding
 """
 
@@ -1023,14 +1024,20 @@ class TestSpecialCol:
 
 
 class TestLocalizerClassifyIntegration:
-    """Regression tests: this entire method previously crashed via four
-    stacked bugs (self.beh undefined, an unguarded headers[0] crash in
-    select_bdm_data, an undefined `beh` variable in get_train_X, and a
-    missing nr_freq axis in localizer_classify_'s array pre-allocation).
+    """localizer_classify is gated off for this release (experimental,
+    not covered by the paper/tutorials -- see KNOWN_LIMITATIONS.md).
+
+    Before being gated, this method worked correctly for independent
+    train/test set decoding (near-perfect AUC recovery on separable
+    synthetic data, for both GAT=False and GAT=True) after four stacked
+    bugs were fixed (self.beh undefined, an unguarded headers[0] crash
+    in select_bdm_data, an undefined `beh` variable in get_train_X, and
+    a missing nr_freq axis in localizer_classify_'s array
+    pre-allocation) -- kept as a record for when it's un-gated.
     """
 
     @pytest.mark.unit
-    def test_gat_false_recovers_near_perfect_auc(self):
+    def test_raises_not_implemented(self):
         epochs_tr, df_tr, epochs_te, df_te = make_localizer_epoch_pair()
         bdm = BDM(
             sj=1,
@@ -1045,44 +1052,14 @@ class TestLocalizerClassifyIntegration:
             avg_trials=1,
         )
 
-        scores = bdm.localizer_classify(
-            tr_window_oi=(-0.1, 0.4),
-            te_window_oi=(-0.1, 0.4),
-            tr_labels_oi="all",
-            te_labels_oi="all",
-            GAT=False,
-        )
-
-        assert scores["all_data"]["dec_scores"].mean() > 0.95
-
-    @pytest.mark.unit
-    def test_gat_true_diagonal_matches_within_time_result(self):
-        epochs_tr, df_tr, epochs_te, df_te = make_localizer_epoch_pair()
-        bdm = BDM(
-            sj=1,
-            epochs=[epochs_tr, epochs_te],
-            df=[df_tr, df_te],
-            to_decode="label",
-            baseline=None,
-            nr_folds=1,
-            elec_oi="all",
-            data_type="broadband",
-            downsample=100,
-            avg_trials=1,
-        )
-
-        scores = bdm.localizer_classify(
-            tr_window_oi=(-0.1, 0.4),
-            te_window_oi=(-0.1, 0.4),
-            tr_labels_oi="all",
-            te_labels_oi="all",
-            GAT=True,
-        )
-
-        gat = scores["all_data"]["dec_scores"]
-        assert gat.ndim == 2
-        assert gat.shape[0] == gat.shape[1]
-        assert np.diag(gat).mean() > 0.95
+        with pytest.raises(NotImplementedError, match="localizer_classify is experimental"):
+            bdm.localizer_classify(
+                tr_window_oi=(-0.1, 0.4),
+                te_window_oi=(-0.1, 0.4),
+                tr_labels_oi="all",
+                te_labels_oi="all",
+                GAT=False,
+            )
 
 
 # ============================================================================
