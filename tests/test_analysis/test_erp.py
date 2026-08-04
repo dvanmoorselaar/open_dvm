@@ -209,6 +209,35 @@ class TestFlipTopography:
         with pytest.warns(UserWarning, match="HEOG channel 'HEOG' not found"):
             ERP.flip_topography(epochs, trial_info, topo_flip={"target_loc": [1]})
 
+    @pytest.mark.unit
+    def test_flip_correct_when_heog_not_last_channel(self):
+        """
+        Regression test: flip_topography indexed pre_flip (built from
+        eeg/csd `picks` only) using the full-channel-list position of
+        each electrode, instead of its position within `picks`. This
+        stayed hidden whenever HEOG was the last channel (its position
+        never affected any eeg electrode's index), but corrupts data
+        whenever a non-eeg channel appears before an electrode being
+        flipped.
+        """
+        ch_names = ["O1", "HEOG", "O2", "P7", "P8"]
+        ch_types = ["eeg", "eog", "eeg", "eeg", "eeg"]
+        values = {"O1": 10.0, "HEOG": 1.0, "O2": 20.0, "P7": 30.0, "P8": 40.0}
+
+        data = np.zeros((1, len(ch_names), 5))
+        for i, ch in enumerate(ch_names):
+            data[:, i, :] = values[ch]
+        info = mne.create_info(ch_names, 100, ch_types=ch_types)
+        epochs = mne.EpochsArray(data, info, tmin=-0.05)
+        trial_info = pd.DataFrame({"target_loc": [1]})
+
+        flipped = ERP.flip_topography(
+            epochs, trial_info, topo_flip={"target_loc": [1]}, flip_dict={"O1": "O2", "P7": "P8"}
+        )
+        result = {ch: flipped._data[0, i, 0] for i, ch in enumerate(ch_names)}
+
+        assert result == {"O1": 20.0, "HEOG": -1.0, "O2": 10.0, "P7": 40.0, "P8": 30.0}
+
 
 # ============================================================================
 # select_erp_data

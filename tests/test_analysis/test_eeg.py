@@ -386,6 +386,39 @@ class TestRawReportRaw:
         assert out is report
         assert len(report._content) > n_before
 
+    @pytest.mark.unit
+    def test_event_id_none_does_not_crash(self):
+        """
+        Regression test: event_id=None used to crash inside
+        np.isin(events[:, 2], None), which matches nothing and left
+        report.add_events() with an empty array -- a plausible call
+        pattern since report_raw has no default for event_id.
+        """
+        raw = make_synthetic_raw_with_stim([(100, 1), (300, 2)])
+        events = np.array([[100, 0, 1], [300, 0, 2]])
+        report = mne.Report(title="test")
+        n_before = len(report._content)
+
+        out = raw.report_raw(report, events, event_id=None)
+
+        assert out is report
+        assert len(report._content) > n_before
+
+    @pytest.mark.unit
+    def test_event_id_matching_nothing_does_not_crash(self):
+        """
+        Regression test: an event_id that filters out every event used
+        to pass an empty array into report.add_events(), which raises
+        ValueError('No events in events array, cannot plot.').
+        """
+        raw = make_synthetic_raw_with_stim([(100, 1), (300, 2)])
+        events = np.array([[100, 0, 1], [300, 0, 2]])
+        report = mne.Report(title="test")
+
+        out = raw.report_raw(report, events, event_id=[999])
+
+        assert out is report
+
 
 # ============================================================================
 # Epochs.__init__: filter-padding math
@@ -553,6 +586,39 @@ class TestEpochsAlignMetaData:
 
         assert len(missing) == 0
         assert len(epochs) == 4
+
+    @pytest.mark.unit
+    def test_practice_filter_keeps_non_yes_values_not_just_literal_no(self, tmp_path, monkeypatch):
+        """
+        Regression test: practice-trial removal used to keep only rows
+        where practice == 'no', silently dropping real trials with any
+        other non-'yes' value (blank, NaN, typo, ...) instead of only
+        excluding practice == 'yes' rows. This corrupted alignment
+        silently while still reporting a "Perfect match".
+        """
+        monkeypatch.chdir(tmp_path)
+        # trials 3 (blank) and 4 ('no') are both real; only 1/2 are practice
+        epochs = make_synthetic_epochs([2, 3], event_id=[2, 3])
+        events = epochs.events
+        write_behavioral_csv(
+            1,
+            1,
+            pd.DataFrame(
+                {
+                    "trigger": [1, 1, 2, 3],
+                    "nr_trials": [1, 2, 3, 4],
+                    "practice": ["yes", "yes", "", "no"],
+                }
+            ),
+        )
+
+        missing, report = epochs.align_meta_data(
+            events, trigger_header="trigger", beh_oi=["trigger", "nr_trials", "practice"]
+        )
+
+        assert len(missing) == 0
+        assert len(epochs) == 2
+        np.testing.assert_array_equal(epochs.metadata["nr_trials"], [3, 4])
 
     @pytest.mark.unit
     def test_custom_trial_nr_header_used_for_missing_trial_report(self, tmp_path, monkeypatch):

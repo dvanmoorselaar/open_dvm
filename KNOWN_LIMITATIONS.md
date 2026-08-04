@@ -106,6 +106,16 @@ filing an issue.
 - **`bin_tracker_angles` excludes a trial entirely on any single NaN gaze
   sample**, even a brief blink-related one, rather than offering partial
   tolerance or interpolation.
+- **`align_meta_data`'s missing-trial resolution can silently mispair
+  trials when trigger values repeat** (`nr_miss > 0` branch). It walks
+  behavioral/EEG triggers position-by-position and drops the first
+  mismatch, which is ambiguous whenever the same trigger value occurs
+  for multiple consecutive trials -- the trigger sequence alone can't
+  say *which* repeated-value trial actually failed to record. Documented
+  in the method's own docstring; the recommended workaround is to use
+  ascending, per-trial-unique trigger codes rather than condition-coded
+  repeating values, since `epochs.metadata` already carries all
+  behavioral variables after alignment.
 
 ## ERP
 

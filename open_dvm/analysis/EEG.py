@@ -399,8 +399,15 @@ class RAW(BaseRaw, FolderStructure):
         report.add_raw(self, title="Raw EEG", psd=True)
 
         # Add events
-        events_filtered = events[np.isin(events[:, 2], event_id)]
-        report.add_events(events_filtered, title="Detected Events", sfreq=self.info["sfreq"])
+        if event_id is None:
+            events_filtered = events
+        else:
+            events_filtered = events[np.isin(events[:, 2], event_id)]
+
+        if events_filtered.size == 0:
+            print("No events to report (event_id filtered out all events)")
+        else:
+            report.add_events(events_filtered, title="Detected Events", sfreq=self.info["sfreq"])
 
         return report
 
@@ -1210,7 +1217,7 @@ class Epochs(mne.Epochs, BaseEpochs, FolderStructure):
         # remove practice trials
         if del_practice and "practice" in beh_oi:
             nr_remove = df[df.practice == "yes"].shape[0]
-            nr_exp = df[df.practice == "no"].shape[0]
+            nr_exp = df[df.practice != "yes"].shape[0]
             # check whether EEG and practice triggers overlap
             practice_triggers = df[trigger_header].values[:nr_remove]
             if (
@@ -1225,7 +1232,7 @@ class Epochs(mne.Epochs, BaseEpochs, FolderStructure):
                 )
                 eeg_triggers = np.delete(eeg_triggers, np.arange(nr_remove))
             print(f"{nr_remove} practice trials removed from behavior")
-            df = df[df.practice == "no"]
+            df = df[df.practice != "yes"]
             df = df.drop(["practice"], axis=1)
             df.reset_index(inplace=True, drop=True)
         beh_triggers = df[trigger_header].values

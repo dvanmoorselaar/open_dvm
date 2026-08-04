@@ -15,9 +15,10 @@ Initial release baseline. Not yet tagged -- pending a final review pass.
 - Time-Frequency Representation (TFR) analysis: Morlet wavelet decomposition, evoked vs. total power.
 - Brain Decoding Multivariate (BDM) analysis: within- and cross-condition decoding, generalization across time (GAT), permutation testing, trial-history analyses via `special_col`.
 - Channel Tuning Function (CTF) analysis: inverted encoding models for spatial reconstruction, cross-task generalization, subject-specific reference-location alignment via `special_loc`.
-- Eye-tracking integration: saccade detection, fixation-based trial exclusion.
+- Eye-tracking integration: saccade detection, fixation-based trial exclusion, with clean-room EyeLink (`.asc`) and EyeTribe (`.tsv`) file readers.
 - Statistical utilities: cluster-based permutation tests, FDR correction, bootstrap statistics.
 - Publication-quality plotting for all four analysis modalities (`open_dvm.visualization.plot`), including condition-difference (`cnd_diff`) testing and visualization.
 - Synthetic-data generators (`open_dvm.support.synthetic_data`) for demonstrating plotting/statistics independent of any real dataset.
+- Auto-downloaded example dataset (`open_dvm.support.datasets`), fetched and cached from OSF, so tutorials run without any manual data setup.
 - 10 tutorial notebooks (`tutorials/`) covering the full workflow from preprocessing through advanced BDM/CTF analyses.
-- Full test suite (760 tests) across all analysis and visualization modules.
+- Full test suite (795 tests) across all analysis and visualization modules.

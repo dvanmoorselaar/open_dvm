@@ -880,12 +880,17 @@ class ERP(FolderStructure):
 
         # left stimuli are flipped as if presented right
         pre_flip = np.copy(epochs._data[idx_l][:, picks])
+        # pre_flip only has columns for picks, so electrode positions
+        # must be looked up within that subset, not epochs.ch_names
+        picked_idx_map = {epochs.ch_names[p]: i for i, p in enumerate(picks)}
 
         # do actual flipping
         print("flipping topography")
         for l_elec, r_elec in flip_dict.items():
-            l_elec_data = pre_flip[:, epochs.ch_names.index(l_elec)]
-            r_elec_data = pre_flip[:, epochs.ch_names.index(r_elec)]
+            if l_elec not in picked_idx_map or r_elec not in picked_idx_map:
+                continue
+            l_elec_data = pre_flip[:, picked_idx_map[l_elec]]
+            r_elec_data = pre_flip[:, picked_idx_map[r_elec]]
             epochs._data[idx_l, epochs.ch_names.index(l_elec)] = r_elec_data
             epochs._data[idx_l, epochs.ch_names.index(r_elec)] = l_elec_data
 
