@@ -304,8 +304,12 @@ class FolderStructure(object):
                 - 'use_tracker' : bool, whether to use eye tracker data.
                   If False, uses EOG channel specified in 'eye_ch'
         beh_file : bool, default=True
-            If True, reads behavioral data from separate CSV file. If
-            False, uses condition information from epochs.events array.
+            Only consulted if epochs.metadata is None (metadata, when
+            present, is always used and takes priority over this
+            parameter). If True, reads behavioral data from a separate
+            CSV file. If False, falls back to a minimal DataFrame with
+            just the raw trigger code per trial (epochs.events[:, 2]),
+            not the full behavioral data.
         excl_factor : dict, optional
             Trial exclusion criteria based on experimental conditions.
             Default is None (no exclusion). Format:

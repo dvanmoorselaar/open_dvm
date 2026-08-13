@@ -98,13 +98,15 @@ class ERP(FolderStructure):
         Time range (start, end) in seconds for baseline correction
         (e.g., (-0.2, 0) for 200ms pre-stimulus baseline).
     l_filter : float, optional
-        Low-pass filter cutoff frequency in Hz. Applied to epochs
-        during data selection if specified.
-        Default is None (no filtering).
+        High-pass filter cutoff frequency in Hz (mirrors MNE's l_freq:
+        the low edge of the passband, so frequencies below it are
+        removed). Applied to epochs during data selection if
+        specified. Default is None (no filtering).
     h_filter : float, optional
-        High-pass filter cutoff frequency in Hz. Applied to epochs
-        during data selection if specified.
-        Default is None (no filtering).
+        Low-pass filter cutoff frequency in Hz (mirrors MNE's h_freq:
+        the high edge of the passband, so frequencies above it are
+        removed). Applied to epochs during data selection if
+        specified. Default is None (no filtering).
     downsample : int, optional
         Target sampling frequency in Hz for downsampling. Only
         applied if lower than current sampling rate. Default is None.
@@ -274,7 +276,9 @@ class ERP(FolderStructure):
 
         # if specified remove trials matching specified criteria
         if excl_factor is not None:
-            df, epochs, _ = trial_exclusion(df, epochs, excl_factor)
+            # df/epochs are already this method's own copy (see above),
+            # so the in-place caveat doesn't apply
+            df, epochs, _ = trial_exclusion(df, epochs, excl_factor, warn_inplace=False)
 
         # if filters are specified, filter data before trial averaging
         if self.l_filter is not None or self.h_filter is not None:

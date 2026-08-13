@@ -316,6 +316,28 @@ class TestTrialExclusion:
         assert len(out_epochs) == 3
         assert "no trials selected" in capsys.readouterr().out
 
+    @pytest.mark.unit
+    def test_warn_inplace_default_prints_caveat(self, capsys):
+        df = pd.DataFrame({"correct": [1, 0, 1]})
+        info = mne.create_info(["C1"], 100, ch_types="eeg")
+        epochs = mne.EpochsArray(np.zeros((3, 1, 10)), info, tmin=0)
+
+        trial_exclusion(df.copy(), epochs.copy(), {"correct": [0]})
+
+        assert "IN PLACE" in capsys.readouterr().out
+
+    @pytest.mark.unit
+    def test_warn_inplace_false_suppresses_caveat_but_keeps_count(self, capsys):
+        df = pd.DataFrame({"correct": [1, 0, 1]})
+        info = mne.create_info(["C1"], 100, ch_types="eeg")
+        epochs = mne.EpochsArray(np.zeros((3, 1, 10)), info, tmin=0)
+
+        trial_exclusion(df.copy(), epochs.copy(), {"correct": [0]}, warn_inplace=False)
+
+        out = capsys.readouterr().out
+        assert "IN PLACE" not in out
+        assert "Dropped 1 trials" in out
+
 
 # ============================================================================
 # get_time_slice

@@ -71,8 +71,6 @@ from open_dvm.support.preprocessing_utils import (
 )
 from open_dvm.visualization.plot import plot_bdm_timecourse
 
-warnings.simplefilter("default")
-
 
 class BDM(FolderStructure):
     """
@@ -470,7 +468,7 @@ class BDM(FolderStructure):
 
         return clf
 
-    def get_classifier_weights(self, clf: Any, Xtr_: np.ndarray) -> np.ndarray:
+    def get_classifier_weights(self, clf: Any, Xtr_: np.ndarray, warn: bool = True) -> np.ndarray:
         """
         Extract classifier weights regardless of classifier type.
 
@@ -485,6 +483,10 @@ class BDM(FolderStructure):
         Xtr_ : np.ndarray
                 Training data used to determine weight array dimensions.
                 Shape: (n_samples, n_features)
+        warn : bool, default=True
+                Whether to emit warnings below. Callers looping over many
+                timepoints/folds should pass this only on the first
+                iteration to avoid repeating the same warning per call.
 
         Returns
         -------
@@ -511,7 +513,7 @@ class BDM(FolderStructure):
         """
         if hasattr(clf, "coef_"):
             # For LDA
-            if clf.coef_.shape[0] > 1:
+            if clf.coef_.shape[0] > 1 and warn:
                 warnings.warn(
                     "Classifier weights for >2 classes: returning only "
                     "class 0's discriminant direction (coef_[0]), not an "
@@ -521,7 +523,7 @@ class BDM(FolderStructure):
         elif hasattr(clf, "calibrated_classifiers_"):
             # For CalibratedClassifierCV (SVM)
             base_clf = clf.calibrated_classifiers_[0].estimator
-            if base_clf.coef_.shape[0] > 1:
+            if base_clf.coef_.shape[0] > 1 and warn:
                 warnings.warn(
                     "Classifier weights for >2 classes: returning only "
                     "class 0's discriminant direction (coef_[0]), not an "
@@ -530,7 +532,8 @@ class BDM(FolderStructure):
             weights = base_clf.coef_[0]
         else:
             weights = np.zeros(Xtr_.shape[1])
-            warnings.warn("Classifier weights not available for this \n" + "classifier type")
+            if warn:
+                warnings.warn("Classifier weights not available for this \n" + "classifier type")
 
         return weights
 
@@ -1459,7 +1462,9 @@ class BDM(FolderStructure):
                 )
 
         if excl_factor is not None:
-            df, epochs, _ = trial_exclusion(df, epochs, excl_factor)
+            # all callers of select_bdm_data pass their own disposable
+            # copy of epochs/df, so the in-place caveat doesn't apply
+            df, epochs, _ = trial_exclusion(df, epochs, excl_factor, warn_inplace=False)
 
         # cnd selection for optional induced tfr decoding
         if self.tfr is not None:
@@ -2884,9 +2889,11 @@ class BDM(FolderStructure):
                             Xtr_ = scaler.fit_transform(Xtr_)
                             Xte_ = scaler.transform(Xte_)
 
+                        # gates one-time warnings below so they don't repeat
+                        # once per (run, freq, train_time, test_time)
+                        first_iter = tr_t == 0 and n == 0 and self.run_info == 1
+
                         if self.pca_components[0]:
-                            # Show warning only once if data is not standardized
-                            first_iter = tr_t == 0 and n == 0 and self.run_info == 1
                             if not self.scale and first_iter:
                                 warnings.warn(
                                     "It is recommended to "
@@ -2934,7 +2941,9 @@ class BDM(FolderStructure):
                         class_acc[n, freq, tr_t, te_t] = class_perf
                         conf_matrix[n, freq, tr_t, te_t] = conf_m
                         if not self.pca_components[0]:
-                            weights[n, freq, tr_t, te_t] = self.get_classifier_weights(clf, Xtr_)
+                            weights[n, freq, tr_t, te_t] = self.get_classifier_weights(
+                                clf, Xtr_, warn=first_iter
+                            )
                         elif first_iter:
                             warnings.warn(
                                 "Classifier weights are not "

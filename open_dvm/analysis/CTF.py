@@ -773,7 +773,7 @@ class CTF(BDM):
 
         # hypothesized set tuning functions underlying power measured
         # across electrodes
-        print("Creating bassiset with sin_power ", self.sin_power)
+        print("Creating basis set with sin_power ", self.sin_power)
         self.basisset = self.calculate_basis_set(
             self.nr_bins, self.nr_chans, self.sin_power, self.delta
         )
@@ -1189,7 +1189,9 @@ class CTF(BDM):
 
         # if specified remove trials matching specified criteria
         if excl_factor is not None:
-            df, epochs, _ = trial_exclusion(df, epochs, excl_factor)
+            # all callers of select_ctf_data pass their own disposable
+            # copy of epochs/df, so the in-place caveat doesn't apply
+            df, epochs, _ = trial_exclusion(df, epochs, excl_factor, warn_inplace=False)
 
         # if not already done reset index (to properly align beh and epochs)
         df.reset_index(inplace=True, drop=True)
@@ -2105,11 +2107,11 @@ class CTF(BDM):
 
         # set train and test data
         epochs_tr, df_tr = self.select_ctf_data(
-            self.epochs[0], self.df[0], self.elec_oi, excl_factor_tr
+            self.epochs[0].copy(), self.df[0].copy(), self.elec_oi, excl_factor_tr
         )
 
         epochs_te, df_te = self.select_ctf_data(
-            self.epochs[1], self.df[1], self.elec_oi, excl_factor_te
+            self.epochs[1].copy(), self.df[1].copy(), self.elec_oi, excl_factor_te
         )
 
         if window_oi_tr is None:

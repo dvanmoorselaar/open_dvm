@@ -285,6 +285,35 @@ class TestPerformStats:
         assert len(clusters_a) == len(clusters_b)
         np.testing.assert_allclose(p_vals_a, p_vals_b)
 
+    @pytest.mark.unit
+    @pytest.mark.parametrize("stat_test", ["perm", "ttest", "fdr"])
+    def test_single_subject_warns_and_skips_test(self, stat_test):
+        """Variance across subjects is undefined for n=1; this used to
+        silently produce a NaN threshold and a spurious '0 clusters'
+        result instead of flagging that the test couldn't run."""
+        y = np.random.default_rng(0).normal(0, 1, size=(1, 50))
+
+        with pytest.warns(UserWarning, match="at least 2 subjects"):
+            t_vals, sig_mask, p_vals = perform_stats(y, chance=0, stat_test=stat_test)
+
+        assert np.isnan(t_vals).all()
+        if stat_test == "perm":
+            assert sig_mask == []
+        else:
+            assert sig_mask.shape == y.shape[1:]
+            assert not sig_mask.any()
+
+    @pytest.mark.unit
+    def test_single_subject_return_mask_gives_all_false_mask(self):
+        y = np.random.default_rng(0).normal(0, 1, size=(1, 50))
+
+        with pytest.warns(UserWarning, match="at least 2 subjects"):
+            _, sig_mask, _ = perform_stats(y, chance=0, stat_test="perm", return_mask=True)
+
+        assert sig_mask.dtype == bool
+        assert sig_mask.shape == (50,)
+        assert not sig_mask.any()
+
 
 class TestPerformStatsPairedDifference:
     """Ground truth: a paired two-condition test (y2 given) is just a

@@ -1169,6 +1169,20 @@ class TestPlotBdmTimecourse:
         np.testing.assert_allclose(line.get_ydata(), np.diagonal(gat))
 
     @pytest.mark.unit
+    def test_stats_defaults_to_false(self, recwarn):
+        """Default used to be stats='perm', which silently ran a
+        group-level test even for single-subject data (see
+        TestPerformStats.test_single_subject_warns_and_skips_test in
+        test_stats_utils.py). No stats should run -- and no warning
+        should fire -- when stats is left at its default."""
+        times = np.linspace(-0.1, 0.5, 10)
+        bdms = make_bdm_result(np.full(10, 0.6), times=times, n_subjects=1, noise_sd=0)
+
+        plot_bdm_timecourse(bdms, timecourse="1d")
+
+        assert not any(issubclass(w.category, UserWarning) for w in recwarn.list)
+
+    @pytest.mark.unit
     def test_2d_gat_axis_labels(self):
         times = np.linspace(-0.1, 0.5, 10)
         bdms = make_bdm_result(np.full((10, 10), 0.6), times=times, test_times=times, noise_sd=0)

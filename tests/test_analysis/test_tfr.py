@@ -822,21 +822,24 @@ class TestConditionTfrs:
 
     @pytest.mark.unit
     def test_downsample_reduces_time_points(self, tmp_path, monkeypatch):
+        """downsample is a target Hz (like BDM/ERP/CTF), not a stride
+        factor -- 100 Hz epochs downsampled to 50 Hz should halve the
+        number of time points."""
         monkeypatch.chdir(tmp_path)
         epochs = make_epochs(n_trials=4, n_samples=100, sfreq=100.0)
         df = make_behavioral_df(4, x=1)
 
         tfr_full = TFR(
-            sj=1, epochs=epochs, df=df, min_freq=4, max_freq=20, num_frex=3, downsample=1
+            sj=1, epochs=epochs, df=df, min_freq=4, max_freq=20, num_frex=3, downsample=None
         )
         result_full = tfr_full.condition_tfrs(pos_labels=None, f_name="full")
 
         tfr_down = TFR(
-            sj=1, epochs=epochs, df=df, min_freq=4, max_freq=20, num_frex=3, downsample=2
+            sj=1, epochs=epochs, df=df, min_freq=4, max_freq=20, num_frex=3, downsample=50
         )
         result_down = tfr_down.condition_tfrs(pos_labels=None, f_name="down")
 
-        assert len(result_down["all_data"].times) < len(result_full["all_data"].times)
+        assert len(result_down["all_data"].times) == len(result_full["all_data"].times) // 2
 
     @pytest.mark.unit
     def test_saves_tfr_files_to_disk(self, tmp_path, monkeypatch):

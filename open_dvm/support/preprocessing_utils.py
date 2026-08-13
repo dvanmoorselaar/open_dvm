@@ -618,7 +618,7 @@ def get_diff_pairs(ch_names: list) -> dict:
 
 
 def trial_exclusion(
-    df: pd.DataFrame, epochs: mne.Epochs, excl_factor: dict
+    df: pd.DataFrame, epochs: mne.Epochs, excl_factor: dict, warn_inplace: bool = True
 ) -> Tuple[pd.DataFrame, mne.Epochs, np.ndarray]:
     """
     Exclude trials based on experimental condition criteria.
@@ -637,6 +637,13 @@ def trial_exclusion(
         Exclusion criteria as {column_name: [values_to_exclude]}.
         Multiple columns and values can be specified. All matching
         trials are removed (OR logic within each key, OR across keys).
+    warn_inplace : bool, default=True
+        Whether to print the in-place-mutation caveat below. Internal
+        callers that already pass their own disposable copy of `df`/
+        `epochs` (e.g. BDM/CTF/TFR/ERP's `select_*_data` methods) set
+        this to False, since the caveat doesn't apply to a copy nobody
+        else holds a reference to. Direct/manual callers should leave
+        this at its default.
 
     Returns
     -------
@@ -650,7 +657,8 @@ def trial_exclusion(
     Warnings
     --------
     Modifies df and epochs in-place. Data cannot be recovered after
-    exclusion. Reload from file if needed again.
+    exclusion. Reload from file if needed again. (Suppressed when
+    `warn_inplace=False`.)
 
     Prints warning if no trials match exclusion criteria.
 
@@ -695,10 +703,11 @@ def trial_exclusion(
         df.drop(idx, inplace=True)
         df.reset_index(inplace=True, drop=True)
         print(f"Dropped {sum(mask)} trials after specifying excl_factor")
-        print(
-            "NOTE DROPPING IS DONE IN PLACE. "
-            "PLEASE REREAD DATA IF THAT CONDITION IS NECESSARY AGAIN"
-        )
+        if warn_inplace:
+            print(
+                "NOTE DROPPING IS DONE IN PLACE. "
+                "PLEASE REREAD DATA IF THAT CONDITION IS NECESSARY AGAIN"
+            )
     else:
         print("Trial exclusion: no trials selected " "that matched specified criteria")
 

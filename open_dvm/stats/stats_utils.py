@@ -423,6 +423,16 @@ def perform_stats(
     p_thresh. Choose method based on your study design and effect size
     expectations.
 
+    Warns
+    -----
+    UserWarning
+            If `y` has fewer than 2 subjects (`y.shape[0] < 2`). Variance
+            across subjects is undefined for a single subject, so no test
+            is run; the returned test statistic and p-values are all NaN
+            and the significance mask/cluster list report no significant
+            results, rather than the NaN-driven "0 clusters" a permutation
+            test would otherwise silently produce.
+
     Raises
     ------
     ValueError
@@ -459,6 +469,20 @@ def perform_stats(
             )
         y = y - y2
         chance = 0
+
+    n_subjects = y.shape[0]
+    if n_subjects < 2:
+        warnings.warn(
+            f"Statistical testing requires at least 2 subjects to estimate "
+            f"variance across subjects; got {n_subjects}. Skipping the "
+            f"'{stat_test}' test and returning no significant results.",
+            stacklevel=2,
+        )
+        test_stat = np.full(y.shape[1:], np.nan)
+        if stat_test == "perm" and not return_mask:
+            return test_stat, [], np.array([])
+        sig_mask = np.zeros(y.shape[1:], dtype=bool)
+        return test_stat, sig_mask, np.full(y.shape[1:], np.nan)
 
     # Determine input data dimensionality
     is_2d = y.ndim == 3

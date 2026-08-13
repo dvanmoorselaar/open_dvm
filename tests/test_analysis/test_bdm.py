@@ -195,6 +195,25 @@ class TestGetClassifierWeights:
 
         assert np.all(w == 0)
 
+    @pytest.mark.unit
+    def test_warn_false_suppresses_not_available_warning(self):
+        """Regression test: classify_() calls this once per (run, freq,
+        train_time, test_time) -- without warn=False on all but the
+        first iteration, a GNB/no-coef_ classifier would repeat this
+        warning dozens of times per analysis."""
+        bdm = BDM.__new__(BDM)
+        rng = np.random.default_rng(0)
+        X = np.vstack([rng.normal(0, 1, (20, 3)), rng.normal(2, 1, (20, 3))])
+        y = np.array([0] * 20 + [1] * 20)
+        clf = GaussianNB()
+        clf.fit(X, y)
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            w = bdm.get_classifier_weights(clf, X, warn=False)
+
+        assert np.all(w == 0)
+
 
 # ============================================================================
 # score_auc

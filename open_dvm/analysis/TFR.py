@@ -136,9 +136,11 @@ class TFR(FolderStructure):
             - 'total': Total power (evoked + induced)
             - 'evoked': Evoked power (phase-locked activity)
             - 'induced': Induced power (non-phase-locked activity)
-    downsample : int, default=1
-            Temporal downsampling factor. Values > 1 reduce temporal
-            resolution but speed up analysis and reduce memory usage.
+    downsample : int, optional
+            Target sampling rate in Hz for the computed TFR's time axis
+            (as in BDM/ERP/CTF), converted internally to a stride
+            factor. Reduces temporal resolution but speeds up analysis
+            and lowers memory usage. Default is None (no downsampling).
     laplacian : bool, default=False
             Whether to apply Laplacian (CSD) spatial filtering before
             analysis. Applied fresh at analysis time, not cached; see
@@ -198,7 +200,7 @@ class TFR(FolderStructure):
         base_method: str = "trial_spec",
         method: str = "wavelet",
         power: str = "total",
-        downsample: int = 1,
+        downsample: Optional[int] = None,
         laplacian: bool = False,
         normalize_wavelets: bool = True,
         report: bool = False,
@@ -375,7 +377,9 @@ class TFR(FolderStructure):
 
         # if specified remove trials matching specified criteria
         if excl_factor is not None:
-            df, epochs, _ = trial_exclusion(df, epochs, excl_factor)
+            # df/epochs are already this method's own copy (see above),
+            # so the in-place caveat doesn't apply
+            df, epochs, _ = trial_exclusion(df, epochs, excl_factor, warn_inplace=False)
 
         # apply laplacian filter using mne defaults
         if self.laplacian:
@@ -1010,7 +1014,7 @@ class TFR(FolderStructure):
         **Memory Management:**
         Large datasets can be reduced in memory usage by:
         - Using window_oi to crop temporal dimension
-        - Setting downsample > 1 to reduce temporal resolution
+        - Setting downsample to reduce temporal resolution
         - Selecting specific electrodes with elec_oi
 
         **File Organization:**
@@ -1081,7 +1085,14 @@ class TFR(FolderStructure):
             window_oi = (times[0], times[-1])
 
         time_idx = np.where((times >= window_oi[0]) * (times <= window_oi[1]))[0]
-        idx_2_save = np.array([idx for i, idx in enumerate(time_idx) if i % self.downsample == 0])
+        # downsample is a target frequency in Hz (as in BDM/ERP/CTF), converted
+        # here to the stride factor this method actually decimates by
+        sfreq = self.epochs.info["sfreq"]
+        if self.downsample is not None and self.downsample < sfreq:
+            factor = int(sfreq // self.downsample)
+        else:
+            factor = 1
+        idx_2_save = np.array([idx for i, idx in enumerate(time_idx) if i % factor == 0])
 
         # initiate output dicts and loop over conditions
         tfr = {

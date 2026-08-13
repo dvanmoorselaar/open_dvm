@@ -1209,7 +1209,7 @@ def plot_tfr_timecourse(
     p_cluster: Optional[float] = None,
     threshold: Optional[float] = None,
     mask_nonsig: bool = False,
-    divergence_cmap: bool = False,
+    diverging_cmap: bool = False,
     show_SE: bool = False,
     smooth: bool = False,
     window_oi: Tuple = None,
@@ -1289,7 +1289,7 @@ def plot_tfr_timecourse(
         only). Requires significant clusters to be computed. When True,
         shows dual-visualization: greyscale background + color overlay
         of significant data. Default: False.
-    divergence_cmap : bool, default=False
+    diverging_cmap : bool, default=False
         If True, use diverging colormap for 2D plots. Useful for
         lateralization indices or other data with meaningful zero point
         (e.g., contra-ipsi differences). When True, uses 'RdBu_r'
@@ -1363,7 +1363,7 @@ def plot_tfr_timecourse(
     shown.
 
     Lateralization: When lateralized=True, contra-ipsilateral difference
-    is computed before visualization. divergence_cmap recommended for
+    is computed before visualization. diverging_cmap recommended for
     proper visualization of difference data (shows positive/negative
     symmetrically).
 
@@ -1389,14 +1389,14 @@ def plot_tfr_timecourse(
 
         >>> plot_tfr_timecourse(tfr_data, elec_oi=['C3', 'C4'],
         ...                     timecourse='2d', stats='perm',
-        ...                     mask_nonsig=True, divergence_cmap=False)
+        ...                     mask_nonsig=True, diverging_cmap=False)
 
     Plot lateralized contra-ipsi difference with diverging colormap:
 
         >>> plot_tfr_timecourse(tfr_data,
         ...                     elec_oi=[['C3', 'C5'], ['C4', 'C6']],
         ...                     lateralized=True, timecourse='2d',
-        ...                     divergence_cmap=True, stats='perm')
+        ...                     diverging_cmap=True, stats='perm')
 
     See Also
     --------
@@ -1539,7 +1539,7 @@ def plot_tfr_timecourse(
                         mask_value=np.nan,  # Hide non-significant
                         p_vals=p_vals,
                         p_thresh=p_thresh,
-                        diverging_cmap=divergence_cmap,
+                        diverging_cmap=diverging_cmap,
                         contour=contour,
                         **kwargs,
                     )
@@ -1554,7 +1554,7 @@ def plot_tfr_timecourse(
                         mask_value=0,
                         p_vals=p_vals,
                         p_thresh=p_thresh,
-                        diverging_cmap=divergence_cmap,
+                        diverging_cmap=diverging_cmap,
                         contour=contour,
                         **kwargs,
                     )
@@ -1676,7 +1676,7 @@ def plot_bdm_timecourse(
     smooth: bool = False,
     method: str = "auc",
     chance_level: float = 0.5,
-    stats: Union[str, bool] = "perm",
+    stats: Union[str, bool] = False,
     p_thresh: float = 0.05,
     mask_nonsig: bool = False,
     diverging_cmap: bool = False,
@@ -1741,7 +1741,7 @@ def plot_bdm_timecourse(
         Chance/baseline performance level. Plotted as horizontal
         reference line. For AUC, typically 0.5; for accuracy with 2
         classes, 0.5; for n classes, 1/n.
-    stats : str or bool, default='perm'
+    stats : str or bool, default=False
         Statistical test type for significance overlay:
         - 'perm': Cluster-based permutation test
         - 'ttest': Independent samples t-test
