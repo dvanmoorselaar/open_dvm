@@ -1470,7 +1470,10 @@ class TestPlotCtfTimecourse:
         # plotting a Von Mises/Gaussian fit amplitude output, not a slope
         times = np.linspace(-0.1, 0.5, 10)
         ctfs = [
-            {"A": {"voltage_amps": np.full((1, 10), 0.3)}, "info": {"times": times, "bands": ["all"]}}
+            {
+                "A": {"voltage_amps": np.full((1, 10), 0.3)},
+                "info": {"times": times, "bands": ["all"]},
+            }
             for _ in range(3)
         ]
 

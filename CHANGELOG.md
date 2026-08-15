@@ -21,4 +21,4 @@ Initial release baseline. Not yet tagged -- pending a final review pass.
 - Synthetic-data generators (`open_dvm.support.synthetic_data`) for demonstrating plotting/statistics independent of any real dataset.
 - Auto-downloaded example dataset (`open_dvm.support.datasets`), fetched and cached from OSF, so tutorials run without any manual data setup.
 - 10 tutorial notebooks (`tutorials/`) covering the full workflow from preprocessing through advanced BDM/CTF analyses.
-- Full test suite (795 tests) across all analysis and visualization modules.
+- Full test suite (818 tests) across all analysis and visualization modules.
