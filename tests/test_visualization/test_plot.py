@@ -910,6 +910,27 @@ class TestPlotTfrTimecourse:
         assert cbar_ax.get_ylabel() == "Power (dB)"
 
     @pytest.mark.unit
+    def test_2d_mode_does_not_warn_about_colors(self, capsys):
+        """colors is never read in 2D mode (color comes from cmap), so the
+        'not enough colors' message would be pure noise there -- no colors
+        passed at all, which used to warn regardless of mode."""
+        tfr = make_average_tfr(ch_names=["C3"])
+        tfr_dict = {"A": tfr}
+
+        plot_tfr_timecourse(tfr_dict, elec_oi=["C3"], timecourse="2d", cnds=["A"])
+
+        assert "not enough colors" not in capsys.readouterr().out
+
+    @pytest.mark.unit
+    def test_1d_mode_still_warns_about_colors(self, capsys):
+        tfr = make_average_tfr(ch_names=["C3"])
+        tfr_dict = {"A": tfr}
+
+        plot_tfr_timecourse(tfr_dict, elec_oi=["C3"], timecourse="1d", freq_oi=(8, 12), cnds=["A"])
+
+        assert "not enough colors" in capsys.readouterr().out
+
+    @pytest.mark.unit
     def test_onset_marker_drawn_in_1d_mode(self):
         # regression: onset_times used to be silently ignored outside
         # the 2D+contour combination
@@ -1169,6 +1190,21 @@ class TestPlotBdmTimecourse:
         np.testing.assert_allclose(line.get_ydata(), np.diagonal(gat))
 
     @pytest.mark.unit
+    @pytest.mark.parametrize(
+        "method, expected", [("auc", "AUC"), ("accuracy", "Accuracy"), ("d_prime", "d_prime")]
+    )
+    def test_1d_ylabel_prettifies_known_metrics(self, method, expected):
+        """'auc'/'accuracy' are the two documented common values and get
+        prettified; anything else passes through unchanged rather than
+        guessing at a transformation."""
+        times = np.linspace(-0.1, 0.5, 10)
+        bdms = make_bdm_result(np.full(10, 0.6), times=times, noise_sd=0)
+
+        plot_bdm_timecourse(bdms, timecourse="1d", method=method)
+
+        assert plt.gca().get_ylabel() == expected
+
+    @pytest.mark.unit
     def test_stats_defaults_to_false(self, recwarn):
         """Default used to be stats='perm', which silently ran a
         group-level test even for single-subject data (see
@@ -1191,6 +1227,26 @@ class TestPlotBdmTimecourse:
 
         assert plt.gca().get_xlabel() == "Test time (ms)"
         assert plt.gca().get_ylabel() == "Train time (ms)"
+
+    @pytest.mark.unit
+    def test_2d_mode_does_not_warn_about_colors(self, capsys):
+        """colors is never read in 2D mode (color comes from cmap), so the
+        'not enough colors' message would be pure noise there."""
+        times = np.linspace(-0.1, 0.5, 10)
+        bdms = make_bdm_result(np.full((10, 10), 0.6), times=times, test_times=times, noise_sd=0)
+
+        plot_bdm_timecourse(bdms, timecourse="2d_GAT")
+
+        assert "not enough colors" not in capsys.readouterr().out
+
+    @pytest.mark.unit
+    def test_1d_mode_still_warns_about_colors(self, capsys):
+        times = np.linspace(-0.1, 0.5, 10)
+        bdms = make_bdm_result(np.full(10, 0.6), times=times, noise_sd=0)
+
+        plot_bdm_timecourse(bdms, timecourse="1d")
+
+        assert "not enough colors" in capsys.readouterr().out
 
     @pytest.mark.unit
     def test_2d_tfr_uses_frequency_axis(self):
@@ -1400,6 +1456,29 @@ class TestPlotCtfTimecourse:
         np.testing.assert_allclose(line.get_ydata(), 0.3)
 
     @pytest.mark.unit
+    def test_ylabel_reflects_slopes_output(self):
+        times = np.linspace(-0.1, 0.5, 10)
+        ctfs = make_ctf_result(np.full((1, 10), 0.3), times=times, bands=["all"], noise_sd=0)
+
+        plot_ctf_timecourse(ctfs, timecourse="1d", output="raw_slopes", stats=False)
+
+        assert plt.gca().get_ylabel() == "CTF slope (au)"
+
+    @pytest.mark.unit
+    def test_ylabel_reflects_amps_output(self):
+        # regression: ylabel used to hardcode "CTF slope (au)" even when
+        # plotting a Von Mises/Gaussian fit amplitude output, not a slope
+        times = np.linspace(-0.1, 0.5, 10)
+        ctfs = [
+            {"A": {"voltage_amps": np.full((1, 10), 0.3)}, "info": {"times": times, "bands": ["all"]}}
+            for _ in range(3)
+        ]
+
+        plot_ctf_timecourse(ctfs, timecourse="1d", output="voltage_amps", stats=False)
+
+        assert plt.gca().get_ylabel() == "CTF amplitude (au)"
+
+    @pytest.mark.unit
     def test_1d_multi_band_no_band_oi_warns_and_averages(self):
         # regression: this used to construct-and-discard a Warning object
         times = np.linspace(-0.1, 0.5, 10)
@@ -1482,6 +1561,26 @@ class TestPlotCtfTimecourse:
         plot_ctf_timecourse(ctfs, timecourse="2d_gat", output="raw_slopes", colors=[], stats=False)
 
         assert len(plt.gca().get_images()) == 1
+
+    @pytest.mark.unit
+    def test_2d_mode_does_not_warn_about_colors(self, capsys):
+        """colors is never read in 2D mode (color comes from cmap), so the
+        'not enough colors' message would be pure noise there."""
+        times = np.linspace(-0.1, 0.5, 10)
+        ctfs = make_ctf_result(np.full((1, 10), 0.3), times=times, bands=["all"], noise_sd=0)
+
+        plot_ctf_timecourse(ctfs, timecourse="2d_gat", output="raw_slopes", stats=False)
+
+        assert "not enough colors" not in capsys.readouterr().out
+
+    @pytest.mark.unit
+    def test_1d_mode_still_warns_about_colors(self, capsys):
+        times = np.linspace(-0.1, 0.5, 10)
+        ctfs = make_ctf_result(np.full((1, 10), 0.3), times=times, bands=["all"], noise_sd=0)
+
+        plot_ctf_timecourse(ctfs, timecourse="1d", output="raw_slopes", stats=False)
+
+        assert "not enough colors" in capsys.readouterr().out
 
     @pytest.mark.unit
     def test_ttest_stats_2d_gat_no_crash(self):

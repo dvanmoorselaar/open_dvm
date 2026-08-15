@@ -1425,7 +1425,8 @@ def plot_tfr_timecourse(
         cnds = [cnds[0]]
 
     if colors is None or len(colors) < len(cnds):
-        print("not enough colors specified. Using default colors")
+        if timecourse == "1d":  # colors is unused in 2D mode (comes from cmap)
+            print("not enough colors specified. Using default colors")
         colors = list(mcolors.TABLEAU_COLORS.values())
 
     if elec_oi == "all":
@@ -1735,8 +1736,9 @@ def plot_bdm_timecourse(
         If True, apply Gaussian smoothing to data (both for
         visualization and statistical testing).
     method : str, default='auc'
-        Decoding metric type. Used for axis labeling. Common values:
-        'auc', 'accuracy'. Default: 'auc'.
+        Decoding metric type. Used for axis labeling: 'auc' and
+        'accuracy' are prettified to 'AUC'/'Accuracy'; any other string
+        is used as-is.
     chance_level : float, default=0.5
         Chance/baseline performance level. Plotted as horizontal
         reference line. For AUC, typically 0.5; for accuracy with 2
@@ -1878,14 +1880,17 @@ def plot_bdm_timecourse(
         cnds = [cnds[0]]
 
     if colors is None or len(colors) < len(cnds):
-        print("not enough colors specified. Using default colors")
+        if timecourse == "1d":  # colors is unused in 2D mode (comes from cmap)
+            print("not enough colors specified. Using default colors")
         colors = list(mcolors.TABLEAU_COLORS.values())
 
     for c, cnd in enumerate(cnds):
         y = np.stack([bdm[cnd]["dec_scores"] for bdm in bdms])
         color = colors[c]
 
-        y_label = method  # overwritten below for the 2D branches
+        # overwritten below for the 2D branches; prettify the two documented
+        # common values, otherwise fall back to the raw string as-is
+        y_label = {"auc": "AUC", "accuracy": "Accuracy"}.get(method, method)
 
         if timecourse == "1d":
             if y.ndim > 2:
@@ -2059,6 +2064,25 @@ def plot_bdm_timecourse(
         plt.axhline(chance_level, color="black", ls="--", lw=1)
 
     sns.despine(offset=offset_axes)
+
+
+_CTF_OUTPUT_LABELS = {
+    "slopes": "CTF slope (au)",
+    "amps": "CTF amplitude (au)",
+    "base": "CTF baseline (au)",
+    "conc": "CTF concentration (au)",
+    "means": "CTF mean location (deg)",
+}
+
+
+def _ctf_output_label(output):
+    """Human-readable axis/colorbar label for one or more CTF output keys,
+    e.g. 'voltage_slopes' -> 'CTF slope (au)', 'voltage_amps' -> 'CTF
+    amplitude (au)'. Falls back to a generic label for unrecognized suffixes.
+    """
+    suffixes = {out.rsplit("_", 1)[-1] for out in output}
+    labels = {_CTF_OUTPUT_LABELS.get(suffix, "CTF value (au)") for suffix in suffixes}
+    return " / ".join(sorted(labels))
 
 
 def plot_ctf_timecourse(
@@ -2308,7 +2332,8 @@ def plot_ctf_timecourse(
         output = [output]
 
     if colors is None or len(colors) < len(cnds):
-        print("not enough colors specified. Using default colors")
+        if timecourse == "1d":  # colors is unused in 2D mode (comes from cmap)
+            print("not enough colors specified. Using default colors")
         colors = list(mcolors.TABLEAU_COLORS.values())
 
     if band_oi is not None:
@@ -2319,7 +2344,8 @@ def plot_ctf_timecourse(
             )
         band_idx = ctfs[0]["info"]["bands"].index(band_oi)
 
-    ylabel = f"CTF slope (au) - {band_oi}" if band_oi is not None else "CTF slope (au)"
+    ctf_label = _ctf_output_label(output)
+    ylabel = f"{ctf_label} - {band_oi}" if band_oi is not None else ctf_label
     for c, cnd in enumerate(cnds):
         color = colors[c]
         for o, out in enumerate(output):
@@ -2432,7 +2458,7 @@ def plot_ctf_timecourse(
                     y_val=y_range,
                     colorbar=True,
                     set_y_ticks=y_ticks,
-                    cbar_label="CTF slope",
+                    cbar_label=ctf_label,
                     mask=sig_mask if mask_nonsig else None,
                     mask_value=0,
                     p_vals=p_vals,
