@@ -1,10 +1,10 @@
 # open_dvm
 
-**open_dvm** is a comprehensive Python toolbox for EEG, eye-tracking, and behavioral data
-analysis, built on top of [MNE-Python](https://mne.tools/). It covers the full pipeline from
-raw-data preprocessing through:
+**open_dvm** is a comprehensive Python toolbox for EEG analysis, built on top of
+[MNE-Python](https://mne.tools/) -- especially suited to integrating EEG data with behavioral
+and/or eye-tracking experiments. It covers the full analysis pipeline:
 
-- **EEG Preprocessing** -- Filtering, ICA-based artifact removal, autoreject-based trial rejection, eye-tracking-based quality control
+- **Preprocessing** -- Filtering, ICA-based artifact removal, autoreject-based trial rejection, eye-tracking-based quality control
 - **Event-Related Potentials (ERP)** -- Condition-specific ERPs, lateralization, topography plots
 - **Time-Frequency Representations (TFR)** -- Morlet wavelet decomposition, evoked vs. total power
 - **Multivariate Decoding (BDM)** -- Within- and cross-condition decoding, generalization across time (GAT), permutation testing
