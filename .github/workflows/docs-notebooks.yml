@@ -24,6 +24,11 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: master
+          # master requires PRs for the default GITHUB_TOKEN's bot identity,
+          # but admin pushes bypass that -- authenticate as the repo owner
+          # via a PAT so this workflow's commit can push directly, same as
+          # a manual push would.
+          token: ${{ secrets.DOCS_BOT_PAT }}
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -49,6 +54,23 @@ jobs:
               "/tmp/${nb}.ipynb"
             mv "/tmp/${nb}.ipynb" "docs/tutorials/${nb}.ipynb"
           done
+
+      - name: Coalesce fragmented stream output
+        # Many small print()/logging calls in one cell each land as their
+        # own output entry in the notebook JSON; MyST-NB renders every
+        # entry as its own boxed block, which reads as dozens of stray
+        # "cells". nbconvert's own exporters merge these by default --
+        # MyST-NB doesn't, so do it explicitly before committing.
+        run: |
+          python -c "
+          import nbformat, glob
+          from nbconvert.preprocessors import CoalesceStreamsPreprocessor
+          pre = CoalesceStreamsPreprocessor()
+          for path in glob.glob('docs/tutorials/*.ipynb'):
+              nb = nbformat.read(path, as_version=4)
+              nb, _ = pre.preprocess(nb, {})
+              nbformat.write(nb, path)
+          "
 
       - name: Commit rendered notebooks
         uses: stefanzweifel/git-auto-commit-action@v5
