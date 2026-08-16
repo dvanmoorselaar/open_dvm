@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "open-dvm"
-version = "0.1.0"
+version = "0.1.1"
 description = "OpenDvM: Decoding the Visual Mind -- A comprehensive toolkit for analyzing EEG/MEG, ERP, and eye-tracking data in cognitive neuroscience research"
 readme = "README.md"
 license = {text = "MIT"}

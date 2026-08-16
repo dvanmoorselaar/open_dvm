@@ -50,7 +50,16 @@ For development:
 Created by Dirk van Moorselaar.
 """
 
-__version__ = "0.1.0"
+from importlib.metadata import PackageNotFoundError, version as _version
+
+try:
+    # single source of truth: pyproject.toml's [project] version, via the
+    # installed package's metadata -- avoids the two hardcoded copies
+    # falling out of sync at release time (this exact bug happened once).
+    __version__ = _version("open-dvm")
+except PackageNotFoundError:
+    __version__ = "unknown"
+
 __author__ = "Dirk van Moorselaar"
 
 # Expose main analysis classes for convenience imports

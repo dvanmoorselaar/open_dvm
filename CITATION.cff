@@ -4,8 +4,8 @@ message: >-
   (the accompanying methods paper) below. You may additionally cite
   the software itself using the metadata in this file.
 title: open_dvm
-version: 0.1.0
-date-released: "2026-08-15"
+version: 0.1.1
+date-released: "2026-08-16"
 repository-code: "https://github.com/dvanmoorselaar/open_dvm"
 license: MIT
 authors:
