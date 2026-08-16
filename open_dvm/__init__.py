@@ -50,7 +50,8 @@ For development:
 Created by Dirk van Moorselaar.
 """
 
-from importlib.metadata import PackageNotFoundError, version as _version
+from importlib.metadata import PackageNotFoundError
+from importlib.metadata import version as _version
 
 try:
     # single source of truth: pyproject.toml's [project] version, via the
