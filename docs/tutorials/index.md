@@ -2,11 +2,12 @@
 
 These notebooks demonstrate the core open_dvm workflows end-to-end, running against a small
 auto-downloaded example dataset -- no manual data setup required. Outputs on this site are
-generated fresh on every documentation build, straight from the current codebase.
+re-executed automatically whenever the tutorials change (see `.github/workflows/docs-notebooks.yml`),
+so they always reflect the current codebase, just not necessarily the exact commit being viewed.
 
 ```{note}
 **Tutorial 1 (Preprocessing)** requires interactive ICA component selection, so it can't run
-headless as part of a documentation build. Run it locally in Jupyter instead -- see
+headless. Run it locally in Jupyter instead -- see
 `tutorials/01_preprocessing.ipynb` in the repository. All other tutorials use already-preprocessed
 example data, so they run immediately.
 ```

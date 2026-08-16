@@ -1,0 +1,57 @@
+name: docs-notebooks
+
+# Executes the tutorial notebooks and commits the rendered (output-included)
+# copies into docs/tutorials/. This runs on a regular GitHub Actions runner
+# rather than on ReadTheDocs itself, since RTD's build containers don't have
+# enough memory to run the BDM/CTF decoding notebooks -- see the OOM this
+# workflow replaced. tutorials/*.ipynb (the canonical, output-free source)
+# is only ever read here, never written to.
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'tutorials/*.ipynb'
+      - 'docs/conf.py'
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  execute-notebooks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: master
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install open_dvm and notebook execution tools
+        run: |
+          pip install -e .
+          pip install jupyter nbconvert ipykernel
+
+      - name: Execute tutorial notebooks
+        # Notebook 01 (preprocessing) needs interactive ICA component
+        # selection and can't run headless -- excluded, same as the docs
+        # toctree (see docs/tutorials/index.md).
+        run: |
+          for nb in 00_visualization_and_statistics 02_erp_analysis 03_tfr_analysis \
+                    04_tfr_advanced 05_bdm_decoding 06_bdm_advanced 07_ctf_analysis \
+                    08_ctf_advanced 09_bdm_ctf_comparison; do
+            cp "tutorials/${nb}.ipynb" "/tmp/${nb}.ipynb"
+            jupyter nbconvert --to notebook --execute --inplace \
+              --ExecutePreprocessor.timeout=1200 \
+              "/tmp/${nb}.ipynb"
+            mv "/tmp/${nb}.ipynb" "docs/tutorials/${nb}.ipynb"
+          done
+
+      - name: Commit rendered notebooks
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "docs: re-execute tutorial notebooks"
+          file_pattern: 'docs/tutorials/*.ipynb'

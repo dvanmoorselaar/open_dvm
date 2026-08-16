@@ -34,9 +34,12 @@ myst_enable_extensions = [
     "colon_fence",
     "deflist",
 ]
-nb_execution_mode = "force"  # always re-run notebooks so docs never show stale output
-nb_execution_timeout = 600
-nb_execution_allow_errors = False
+# Notebooks are pre-executed by .github/workflows/docs-notebooks.yml (on a
+# GitHub Actions runner, which has far more memory than RTD's build
+# containers -- executing BDM/CTF decoding notebooks in-place on RTD OOMs
+# the build) and committed into docs/tutorials/ with real output already
+# embedded. RTD itself never executes anything, just renders what's there.
+nb_execution_mode = "off"
 # Notebook 01 (preprocessing) needs interactive ICA component selection and
 # can't run headless -- it's intentionally not linked from any toctree here,
 # see tutorials/index.md.
