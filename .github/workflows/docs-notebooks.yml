@@ -15,6 +15,15 @@ on:
       - 'open_dvm/**'  # package changes can change what the notebooks render/print
   workflow_dispatch: {}
 
+# Notebook execution takes ~20 min; a second push landing on master while
+# this is in flight used to make the final push fail as non-fast-forward
+# (happened twice). Queue runs on the same ref instead of letting them
+# race each other -- this only guards workflow-vs-workflow races, the
+# retry-with-rebase logic below handles workflow-vs-manual-push races.
+concurrency:
+  group: docs-notebooks-${{ github.ref }}
+  cancel-in-progress: false
+
 permissions:
   contents: write
 
@@ -30,6 +39,11 @@ jobs:
           # via a PAT so this workflow's commit can push directly, same as
           # a manual push would.
           token: ${{ secrets.DOCS_BOT_PAT }}
+          # Full history, not the default shallow clone -- the commit/push
+          # step below rebases onto whatever master has moved to by the
+          # time the ~20 min notebook execution finishes, which needs a
+          # real common ancestor to work with.
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -73,8 +87,38 @@ jobs:
               nbformat.write(nb, path)
           "
 
-      - name: Commit rendered notebooks
-        uses: stefanzweifel/git-auto-commit-action@v5
-        with:
-          commit_message: "docs: re-execute tutorial notebooks"
-          file_pattern: 'docs/tutorials/*.ipynb'
+      - name: Commit and push rendered notebooks
+        # Not stefanzweifel/git-auto-commit-action here -- it pushes once
+        # and gives up, which fails as non-fast-forward if master moved
+        # during the ~20 min notebook execution (observed twice: another
+        # docs-notebooks run finishing first, and a manual push landing
+        # mid-run). Rebase onto the latest master immediately before every
+        # push attempt instead of just once.
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          if git diff --quiet -- docs/tutorials/*.ipynb; then
+            echo "No notebook output changes to commit."
+            exit 0
+          fi
+
+          git add docs/tutorials/*.ipynb
+          git commit -m "docs: re-execute tutorial notebooks"
+
+          for attempt in 1 2 3 4 5; do
+            git fetch origin master
+            if ! git rebase origin/master; then
+              echo "Rebase conflict against latest master -- needs human review."
+              git rebase --abort
+              exit 1
+            fi
+            if git push origin HEAD:master; then
+              echo "Pushed successfully on attempt ${attempt}."
+              exit 0
+            fi
+            echo "Push rejected on attempt ${attempt}, retrying..."
+          done
+
+          echo "Failed to push after 5 attempts."
+          exit 1
