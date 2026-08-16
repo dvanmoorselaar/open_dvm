@@ -12,6 +12,7 @@ on:
     paths:
       - 'tutorials/*.ipynb'
       - 'docs/conf.py'
+      - 'open_dvm/**'  # package changes can change what the notebooks render/print
   workflow_dispatch: {}
 
 permissions:

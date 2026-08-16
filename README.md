@@ -1,6 +1,8 @@
 # OpenDvM
 
 ![tests](https://github.com/dvanmoorselaar/open_dvm/actions/workflows/tests.yml/badge.svg)
+![PyPI](https://img.shields.io/pypi/v/open-dvm.svg)
+![Docs](https://readthedocs.org/projects/open-dvm/badge/?version=latest)
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.8%2B-blue.svg)
 
@@ -14,12 +16,12 @@ EEG analysis includes:
 - Forward encoding / channel tuning function models (CTF)
 - Eye-tracking integration and quality control
 
+**Full documentation, including runnable tutorials with real output, is at [open-dvm.readthedocs.io](https://open-dvm.readthedocs.io/).**
+
 ## Installation
 
-`open_dvm` isn't published on PyPI yet. Install directly from GitHub:
-
 ```bash
-pip install git+https://github.com/dvanmoorselaar/open_dvm.git
+pip install open-dvm
 ```
 
 For development (editable install with test/lint dependencies):
@@ -46,7 +48,7 @@ erp.condition_erps(pos_labels={'target_loc': [2, 6]})
 
 ## Tutorials
 
-The `tutorials/` folder contains 10 Jupyter notebooks that walk through the toolbox end to end, from preprocessing to advanced decoding:
+The `tutorials/` folder contains 10 Jupyter notebooks that walk through the toolbox end to end, from preprocessing to advanced decoding. For rendered versions with real output already included, see the [hosted tutorials](https://open-dvm.readthedocs.io/en/latest/tutorials/index.html).
 
 | Notebook | Description |
 |---|---|

@@ -36,7 +36,11 @@ params = {
     "axes.titlesize": 12,
     "xtick.labelsize": 10,
     "ytick.labelsize": 10,
-    "font.family": "arial",
+    # generic family + fallback list, not a hardcoded font name -- Arial
+    # isn't installed on Linux (CI runners, RTD, many users), which made
+    # matplotlib print a "findfont" warning on every text render
+    "font.family": "sans-serif",
+    "font.sans-serif": ["Arial", "Helvetica", "DejaVu Sans"],
 }
 matplotlib.rcParams.update(params)
 
