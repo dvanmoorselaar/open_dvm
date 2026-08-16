@@ -1,0 +1,18 @@
+version: 2
+
+build:
+  os: ubuntu-22.04
+  tools:
+    python: "3.10"
+  jobs:
+    pre_build:
+      # Editable install so autodoc/autosummary can import open_dvm and
+      # every notebook can actually run against the real package.
+      - pip install -e .
+
+sphinx:
+  configuration: docs/conf.py
+
+python:
+  install:
+    - requirements: docs/requirements-docs.txt

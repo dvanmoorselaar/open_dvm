@@ -40,10 +40,10 @@ Basic ERP Analysis:
 
 Installation
 ------------
-    pip install open_dvm
+    pip install open-dvm
 
 For development:
-    git clone https://github.com/dvm/open_dvm.git
+    git clone https://github.com/dvanmoorselaar/open_dvm.git
     cd open_dvm
     pip install -e .
 

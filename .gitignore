@@ -38,3 +38,8 @@ htmlcov/
 
 # Generated paper figures (regenerate via paper_figures/generate_figures.py)
 /paper_figures/output/
+
+# Sphinx build output
+/docs/_build/
+/docs/_autosummary/
+/_build/
