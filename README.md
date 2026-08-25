@@ -72,7 +72,7 @@ The `tutorials/` folder contains 10 Jupyter notebooks that walk through the tool
 
 Analyses are run from project-specific scripts, pointed at a project folder containing:
 
-1. `eeg/raw` (raw EEG files -- `.bdf` (BioSemi), `.edf`, BrainVision `.vhdr`, Neuroscan `.cnt`, or EEGLAB `.set`; pass the extension via `eeg_preprocessing_pipeline`'s `raw_ext` parameter, default `'bdf'`)
+1. `eeg/raw` (raw EEG files -- `.bdf` (BioSemi), `.edf`, BrainVision `.vhdr`, Neuroscan `.cnt`, or EEGLAB `.set`; pass the extension via `eeg_preprocessing_pipeline`'s `raw_ext` parameter, default `'bdf'`). `.bdf`/`.edf` carry trigger info on a dedicated stim channel; `.vhdr`/`.cnt`/`.set` represent it as annotations instead, so also pass `annotation_event_id` (a dict mapping your file's annotation descriptions to the same integer codes your behavioral file uses -- see `RAW.select_events`'s docstring).
 2. `behavioral/raw` (raw behavior files, `.csv`)
 3. `eye/raw` (raw eye-tracking files, if available: `.asc` or `.csv`)
 
