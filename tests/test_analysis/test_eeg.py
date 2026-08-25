@@ -198,8 +198,21 @@ class TestRawRealFormatRoundTrip:
     def test_reads_real_neuroscan_cnt_file(self):
         """sample.cnt is MNE's own test fixture for its CNT reader
         (BSD-3-Clause, mne-tools/mne-testing-data) -- a real Neuroscan
-        recording, not something we fabricated ourselves."""
-        loaded = RAW(str(self.CNT_FIXTURE))  # eog defaults to None -- must not crash
+        recording, not something we fabricated ourselves.
+
+        data_format='int32' is explicit rather than the default 'auto'
+        for two independently-verified reasons: (1) mne's own auto byte-
+        width heuristic for this specific file is version-fragile --
+        it resolves to int32 under mne 1.11.0 but raises RuntimeError
+        under 1.12.1 ("not evenly divisible by n_channels"); (2) int32
+        is the *correct* choice, not just a crash workaround -- int16
+        also "succeeds" without erroring but silently misreads every
+        4-byte sample as two 2-byte samples, producing garbled data
+        (verified: int32's output is bit-for-bit identical across mne
+        1.11.0 and 1.12.1, int16's is not)."""
+        loaded = RAW(
+            str(self.CNT_FIXTURE), data_format="int32"
+        )  # eog defaults to None -- must not crash
 
         assert loaded.ch_names == ["F8", "FCz"]
         assert loaded.info["sfreq"] == 1000.0
