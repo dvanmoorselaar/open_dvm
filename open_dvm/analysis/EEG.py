@@ -59,7 +59,7 @@ import time
 import warnings
 from contextlib import redirect_stdout
 from math import ceil, floor, sqrt
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Callable, Dict, List, Optional, Tuple, Union
 
 import matplotlib.pyplot as plt
 import mne
@@ -248,6 +248,15 @@ class RAW(BaseRaw, FolderStructure):
         # Convert to Path object for easier handling
         input_fname = os.path.expanduser(input_fname)
 
+        # Normalize eog before dispatch: edf/bdf's own readers treat
+        # eog=None as "no eog channels", but brainvision/cnt/eeglab's
+        # readers require an iterable and crash on None (verified: both
+        # brainvision and cnt raise TypeError on `ch_name in eog` checks
+        # when eog is None). () is accepted by every reader and means
+        # the same thing.
+        if eog is None:
+            eog = ()
+
         # Auto-detect file type from extension if not specified
         if file_type is None:
             ext = os.path.splitext(input_fname)[1].lower()
@@ -299,7 +308,9 @@ class RAW(BaseRaw, FolderStructure):
                 input_fname, eog=eog, preload=preload, verbose=verbose, **kwargs
             )
         elif file_type == "set":
-            raw = mne.io.read_raw_eeglab(input_fname, preload=preload, verbose=verbose, **kwargs)
+            raw = mne.io.read_raw_eeglab(
+                input_fname, eog=eog, preload=preload, verbose=verbose, **kwargs
+            )
         else:
             raise ValueError(
                 f"Unsupported file type: {file_type}. "
@@ -682,13 +693,24 @@ class RAW(BaseRaw, FolderStructure):
         binary: int = 0,
         consecutive: bool = False,
         min_duration: float = 0.003,
+        annotation_event_id: Union[dict, Callable, None, str] = "auto",
     ) -> np.ndarray:
         """
-        Detect and extract trigger events from stimulus channel.
+        Detect and extract trigger events from a stimulus channel, or
+        from annotations if no stimulus channel exists.
 
         Finds trigger events in the raw EEG data using MNE's event
         detection. Optionally corrects for binary offsets in the trigger
         channel and removes consecutive duplicate events.
+
+        BDF/EDF data (BioSemi/most EEG hardware) conventionally carries
+        a dedicated stim channel, in which case this behaves exactly as
+        before: `mne.find_events` on that channel. BrainVision, EEGLAB,
+        and CNT data typically has no stim channel at all -- triggers
+        are represented as annotations/markers instead. When no stim
+        channel is found, this automatically falls back to
+        `mne.events_from_annotations`, MNE's parallel mechanism for that
+        case, which produces the same (n_events, 3) array shape.
 
         Parameters
         ----------
@@ -706,14 +728,32 @@ class RAW(BaseRaw, FolderStructure):
         binary : int, optional
             Binary offset to subtract from the stimulus channel before
             event detection. Used to correct for spoke triggers or other
-            systematic offsets. Default is 0 (no correction).
+            systematic offsets. Default is 0 (no correction). Only
+            meaningful with a stim channel -- raises ValueError if no
+            stim channel is found (annotation-based detection has no
+            channel data to offset).
         consecutive : bool, optional
             If False, only report events where the trigger channel value
             changes from/to zero. If True, report all trigger value
-            changes. Default is False.
+            changes. Default is False. Only affects stim-channel-based
+            detection.
         min_duration : float, optional
             Minimum duration (in seconds) required for a trigger value
             change to be considered a valid event. Default is 0.003.
+            Only affects stim-channel-based detection.
+        annotation_event_id : dict, callable, None, or 'auto', optional
+            Only used when no stim channel is found. Maps annotation
+            description strings to integer trigger codes -- passed
+            straight through to `mne.events_from_annotations`. Default
+            'auto' uses MNE's format-specific parsing (e.g. BrainVision
+            marker-type conventions) or falls back to numbering
+            descriptions by sorted order, which is convenient for
+            quick exploration but the resulting codes may not match
+            whatever you filter for via event_id or expect downstream
+            in Epochs/behavioral alignment. For an actual pipeline run,
+            pass an explicit dict mapping your file's real annotation
+            descriptions (see raw.annotations.description) to the same
+            integer codes your behavioral file already uses.
 
         Returns
         -------
@@ -747,6 +787,14 @@ class RAW(BaseRaw, FolderStructure):
         >>> # Include consecutive events
         >>> events = raw.select_events(event_id=[1, 2],
         ...             consecutive=True)
+
+        >>> # Annotation-based data (e.g. BrainVision/EEGLAB): map your
+        >>> # file's actual marker descriptions to the codes your
+        >>> # behavioral file uses
+        >>> events = raw.select_events(
+        ...     event_id=[1, 2],
+        ...     annotation_event_id={"Stimulus/S 1": 1, "Stimulus/S 2": 2},
+        ... )
         """
 
         if event_id is not None and 0 in event_id:
@@ -757,56 +805,79 @@ class RAW(BaseRaw, FolderStructure):
                 "Use a different trigger value."
             )
 
-        # Get stim channel data (make a copy to avoid modifying original)
+        # Locate a stim channel if one exists. Only fall back to
+        # annotation-based detection when auto-detection finds none --
+        # an explicitly-named stim_channel that doesn't exist is a
+        # mistake to report, not a signal to switch strategies.
+        stim_idx = None
         if stim_channel is None:
-            # Find the stim channel
-            stim_picks = self.copy().pick("stim", exclude=[]).ch_names
-            if len(stim_picks) == 0:
-                raise ValueError("No stim channel found in data")
-            stim_idx = self.ch_names.index(stim_picks[0])
+            # mne.pick_types tolerates zero matches; Raw.pick(..., stim=True)
+            # raises ValueError instead (allow_empty=False), which used to
+            # pre-empt the dedicated "no stim channel" handling below
+            # before it ever ran.
+            stim_picks = mne.pick_types(self.info, stim=True, exclude=[])
+            if len(stim_picks) > 0:
+                stim_idx = int(stim_picks[0])
         else:
             try:
                 stim_idx = self.ch_names.index(stim_channel)
             except ValueError as exc:
                 raise ValueError(f"Stimulus channel {stim_channel} not " f"found in data") from exc
 
-        # Apply binary offset correction temporarily
-        original_data = None
-        if binary != 0:
-            original_data = self._data[stim_idx, :].copy()
-            self._data[stim_idx, :] -= binary
+        if stim_idx is not None:
+            # Apply binary offset correction temporarily
+            original_data = None
+            if binary != 0:
+                original_data = self._data[stim_idx, :].copy()
+                self._data[stim_idx, :] -= binary
 
-        try:
-            # Find events using MNE
-            events = mne.find_events(
-                self, stim_channel=stim_channel, consecutive=consecutive, min_duration=min_duration
+            try:
+                events = mne.find_events(
+                    self,
+                    stim_channel=stim_channel,
+                    consecutive=consecutive,
+                    min_duration=min_duration,
+                )
+            finally:
+                if original_data is not None:
+                    self._data[stim_idx, :] = original_data
+        else:
+            # No stim channel: BrainVision/EEGLAB/CNT-style data
+            # typically represents triggers as annotations instead --
+            # fall back to MNE's parallel mechanism for that, which
+            # produces the same (n_events, 3) shape as find_events.
+            if binary != 0:
+                raise ValueError(
+                    "binary offset correction requires a stim channel and "
+                    "doesn't apply to annotation-based event detection -- "
+                    "no stim channel was found in this data."
+                )
+            print(
+                "No stim channel found -- using annotation-based event "
+                "detection (mne.events_from_annotations) instead."
             )
+            events, _ = mne.events_from_annotations(self, event_id=annotation_event_id)
 
-            # Remove consecutive identical events if needed
-            if not consecutive and event_id is not None:
-                # Find consecutive duplicates for events in event_id
-                is_duplicate = np.zeros(len(events), dtype=bool)
-                for i in range(len(events) - 1):
-                    if events[i, 2] == events[i + 1, 2] and events[i, 2] in event_id:
-                        is_duplicate[i] = True
+        # Remove consecutive identical events if needed
+        if not consecutive and event_id is not None:
+            # Find consecutive duplicates for events in event_id
+            is_duplicate = np.zeros(len(events), dtype=bool)
+            for i in range(len(events) - 1):
+                if events[i, 2] == events[i + 1, 2] and events[i, 2] in event_id:
+                    is_duplicate[i] = True
 
-                if np.any(is_duplicate):
-                    events = events[~is_duplicate]
-                    nr_removed = np.sum(is_duplicate)
-                    print(f"{nr_removed} consecutive duplicate events removed")
+            if np.any(is_duplicate):
+                events = events[~is_duplicate]
+                nr_removed = np.sum(is_duplicate)
+                print(f"{nr_removed} consecutive duplicate events removed")
 
-            # Filter events by event_id if specified
-            if event_id is not None:
-                mask = np.isin(events[:, 2], event_id)
-                events = events[mask]
-                print(f"{len(events)} events detected matching event_id")
-            else:
-                print(f"{len(events)} events detected")
-
-        finally:
-            # Restore original data if binary offset was applied
-            if original_data is not None:
-                self._data[stim_idx, :] = original_data
+        # Filter events by event_id if specified
+        if event_id is not None:
+            mask = np.isin(events[:, 2], event_id)
+            events = events[mask]
+            print(f"{len(events)} events detected matching event_id")
+        else:
+            print(f"{len(events)} events detected")
 
         return events
 

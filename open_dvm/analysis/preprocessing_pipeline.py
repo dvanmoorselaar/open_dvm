@@ -36,7 +36,7 @@ Created by Dirk van Moorselaar on 8-12-2021.
 Copyright (c) 2021 DvM. All rights reserved.
 """
 
-from typing import Optional
+from typing import Callable, Optional, Union
 
 from open_dvm.analysis.EEG import *
 from open_dvm.support.FolderStructure import FolderStructure as FS
@@ -68,6 +68,8 @@ def eeg_preprocessing_pipeline(
     preproc_name: str = "main",
     nr_sjs: int = 24,
     excl_factor: Optional[dict] = None,
+    raw_ext: str = "bdf",
+    annotation_event_id: Union[dict, Callable, None, str] = "auto",
 ) -> None:
     """
     Preprocess EEG data with optional ICA and automatic artefact
@@ -161,6 +163,26 @@ def eeg_preprocessing_pipeline(
         Behavioral conditions to exclude from preprocessing. Keys are
         column names, values are lists of values to exclude
         (e.g., {'practice': ['yes'], 'correct': [0]}).
+    raw_ext : str, default='bdf'
+        Raw EEG file extension (without dot) to search for and read.
+        Passed straight through to RAW, which auto-detects the MNE
+        reader from the extension -- supported: 'bdf' (BioSemi),
+        'edf' (European Data Format), 'vhdr' (BrainVision), 'cnt'
+        (Neuroscan), 'set' (EEGLAB), 'fif' (already-converted MNE
+        format).
+    annotation_event_id : dict, callable, None, or 'auto', optional
+        Only relevant for raw_ext values with no stim channel (i.e.
+        anything other than 'bdf'/'edf'/'fif') -- BrainVision, EEGLAB,
+        and CNT represent triggers as annotations instead, and this
+        maps annotation description strings to the same integer codes
+        event_id expects. Passed straight through to
+        RAW.select_events()'s parameter of the same name -- see there
+        for the full explanation of 'auto' vs. an explicit dict.
+        Default 'auto' is fine for a first look at your data, but for
+        an actual pipeline run you almost always want an explicit
+        dict, since 'auto' may not number things to match your
+        behavioral file's trigger codes. Ignored for 'bdf'/'edf'/'fif'
+        data (which use a real stim channel instead).
 
     Returns
     -------
@@ -172,7 +194,7 @@ def eeg_preprocessing_pipeline(
     -----
     File Structure Requirements:
     - Raw EEG files should be named:
-      'subject_{sj}_session_{session}_{run}.bdf'
+      'subject_{sj}_session_{session}_{run}.{raw_ext}'
     - Behavioral files should follow project-specific naming
     - Eye tracker files should match behavioral trial structure
     - All file paths are managed automatically by the FolderStructure
@@ -298,13 +320,14 @@ def eeg_preprocessing_pipeline(
 
     raw_files = []
     for run in eeg_runs:
-        files = find_raw_files(base_folder, sj, session, run, ext="bdf")
+        files = find_raw_files(base_folder, sj, session, run, ext=raw_ext)
         if not files:
             run_str = f" (run {run})" if len(eeg_runs) > 1 else ""
             raise FileNotFoundError(
-                f"No BDF file found for subject {sj}, session {session}{run_str}\n"
+                f"No .{raw_ext} file found for subject {sj}, session {session}{run_str}\n"
                 f"Searched in: {base_folder}\n"
-                f"Expected file pattern: sub_*_ses_*.bdf or sub_*_ses_*_run_*.bdf"
+                f"Expected file pattern: sub_*_ses_*.{raw_ext} or "
+                f"sub_*_ses_*_run_*.{raw_ext}"
             )
         raw_files.append(files[0])
 
@@ -323,7 +346,12 @@ def eeg_preprocessing_pipeline(
     EEG.configure_montage(montage=montage)
 
     # get epoch triggers
-    events = EEG.select_events(event_id=event_id, binary=binary, min_duration=0)
+    events = EEG.select_events(
+        event_id=event_id,
+        binary=binary,
+        min_duration=0,
+        annotation_event_id=annotation_event_id,
+    )
 
     # FILTER DATA TWICE: ONCE FOR ICA AND ONCE FOR EPOCHING
     if preproc_param["run_ica"]:

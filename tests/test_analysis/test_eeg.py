@@ -35,6 +35,7 @@ Organization
 
 import os
 import time
+from pathlib import Path
 
 import matplotlib
 import mne
@@ -131,6 +132,78 @@ class TestRawFileDispatch:
             mock_reader.return_value = self._stub_raw()
             RAW("/tmp/fake.bdf", file_type="fif")
             assert mock_reader.called
+
+
+class TestRawRealFormatRoundTrip:
+    """Genuine round-trips through real files, not mocks -- verifies the
+    non-bdf/edf formats actually work end to end, not just that the
+    right MNE function gets called (see TestRawFileDispatch for that).
+
+    Regression context: eog=None (RAW's own default) used to crash
+    brainvision/cnt outright and got silently dropped for set, since
+    those readers require an iterable rather than None. Every test here
+    uses the default eog=None on purpose, since that's what every
+    real caller who doesn't specify eog channels actually hits.
+    """
+
+    CNT_FIXTURE = Path(__file__).resolve().parents[1] / "fixtures" / "data" / "sample.cnt"
+    EDF_FIXTURE = Path(__file__).resolve().parents[1] / "fixtures" / "data" / "sample.edf"
+
+    @pytest.mark.unit
+    def test_reads_real_edf_file(self):
+        """sample.edf is MNE's own test fixture for its EDF reader
+        (BSD-3-Clause, mne-tools/mne-testing-data) -- a real recording,
+        not something round-tripped through mne.export (its EDF writer
+        has an unrelated, reproducible bug that corrupts sample values;
+        see the branch discussion -- not an open_dvm issue, but not a
+        safe way to fabricate an EDF test file either)."""
+        loaded = RAW(str(self.EDF_FIXTURE))  # eog defaults to None -- must not crash
+
+        assert loaded.ch_names == ["Fp1", "F7", "T3"]
+        assert loaded.info["sfreq"] == 512.0
+        assert loaded.n_times == 2560
+
+    @pytest.mark.unit
+    @pytest.mark.parametrize("ext,fmt", [("vhdr", "brainvision"), ("set", "eeglab")])
+    def test_round_trip_preserves_channels_and_data(self, tmp_path, ext, fmt):
+        raw = make_synthetic_raw(["Fz", "Cz", "Pz"], "eeg", sfreq=250, n_samples=500)
+        path = str(tmp_path / f"test_raw.{ext}")
+        mne.export.export_raw(path, raw, fmt=fmt, overwrite=True)
+
+        loaded = RAW(path)  # eog defaults to None -- must not crash
+
+        assert loaded.ch_names == raw.ch_names
+        assert loaded.info["sfreq"] == raw.info["sfreq"]
+        np.testing.assert_allclose(loaded.get_data(), raw.get_data(), atol=1e-9)
+
+    @pytest.mark.unit
+    @pytest.mark.parametrize("ext,fmt", [("vhdr", "brainvision"), ("set", "eeglab")])
+    def test_select_events_falls_back_to_annotations_end_to_end(self, tmp_path, ext, fmt):
+        """Closes the loop from RAW() through select_events() on an
+        actual re-read file, not just the in-memory annotation tests
+        above -- these formats have no stim channel at all once
+        written/read for real, so this is exactly the path a real
+        BrainVision/EEGLAB user hits."""
+        raw = make_synthetic_raw(["Fz", "Cz", "Pz"], "eeg", sfreq=250, n_samples=1000)
+        raw.set_annotations(mne.Annotations([0.4, 1.2, 2.4], [0, 0, 0], ["1", "2", "1"]))
+        path = str(tmp_path / f"test.{ext}")
+        mne.export.export_raw(path, raw, fmt=fmt, overwrite=True)
+
+        loaded = RAW(path)
+        events = loaded.select_events(event_id=[1, 2], min_duration=0)  # annotation_event_id='auto'
+
+        np.testing.assert_array_equal(events, [[100, 0, 1], [300, 0, 2], [600, 0, 1]])
+
+    @pytest.mark.unit
+    def test_reads_real_neuroscan_cnt_file(self):
+        """sample.cnt is MNE's own test fixture for its CNT reader
+        (BSD-3-Clause, mne-tools/mne-testing-data) -- a real Neuroscan
+        recording, not something we fabricated ourselves."""
+        loaded = RAW(str(self.CNT_FIXTURE))  # eog defaults to None -- must not crash
+
+        assert loaded.ch_names == ["F8", "FCz"]
+        assert loaded.info["sfreq"] == 1000.0
+        assert loaded.n_times == 90000
 
 
 # ============================================================================
@@ -352,11 +425,22 @@ class TestRawSelectEvents:
         np.testing.assert_array_equal(raw.get_data(picks="STI"), stim_before)
 
     @pytest.mark.unit
-    def test_no_stim_channel_raises_value_error(self):
+    def test_no_stim_channel_no_annotations_returns_empty(self):
+        """Regression: this used to raise ValueError('No stim channel
+        found in data'), but that check was actually dead code --
+        Raw.pick('stim', exclude=[]) raises its own ValueError first
+        whenever no stim-type channel exists at all (allow_empty=False),
+        pre-empting it. Now that no-stim-channel is the trigger for
+        falling back to annotation-based detection rather than an
+        error, mne.pick_types (which tolerates zero matches) replaces
+        the raising .pick() call -- and zero stim channel AND zero
+        annotations is a legitimate (if unhelpful) empty result, not
+        an error."""
         raw = make_synthetic_raw(["F1", "F2"], "eeg", n_samples=50)
 
-        with pytest.raises(ValueError):
-            raw.select_events()
+        events = raw.select_events()
+
+        assert events.shape == (0, 3)
 
     @pytest.mark.unit
     def test_explicit_stim_channel_not_found_raises_value_error(self):
@@ -364,6 +448,43 @@ class TestRawSelectEvents:
 
         with pytest.raises(ValueError, match="not found in data"):
             raw.select_events(stim_channel="NOPE")
+
+    @pytest.mark.unit
+    def test_falls_back_to_annotations_when_no_stim_channel(self):
+        """The actual new behavior: BrainVision/EEGLAB/CNT-style data
+        has no stim channel but does have real annotations -- these
+        must now be detected via mne.events_from_annotations rather
+        than raising."""
+        raw = make_synthetic_raw(["Fz", "Cz"], "eeg", sfreq=250, n_samples=1000)
+        raw.set_annotations(mne.Annotations([0.4, 1.2, 2.4], [0, 0, 0], ["1", "2", "1"]))
+
+        events = raw.select_events(
+            event_id=[1, 2], annotation_event_id={"1": 1, "2": 2}, min_duration=0
+        )
+
+        np.testing.assert_array_equal(events, [[100, 0, 1], [300, 0, 2], [600, 0, 1]])
+
+    @pytest.mark.unit
+    def test_annotation_fallback_respects_event_id_filter(self):
+        raw = make_synthetic_raw(["Fz", "Cz"], "eeg", sfreq=250, n_samples=1000)
+        raw.set_annotations(mne.Annotations([0.4, 1.2, 2.4], [0, 0, 0], ["keep", "drop", "keep"]))
+
+        events = raw.select_events(
+            event_id=[1], annotation_event_id={"keep": 1, "drop": 2}, min_duration=0
+        )
+
+        np.testing.assert_array_equal(events, [[100, 0, 1], [600, 0, 1]])
+
+    @pytest.mark.unit
+    def test_binary_offset_without_stim_channel_raises_value_error(self):
+        """binary offsets a stim channel's raw values -- meaningless
+        without one, so this must fail loudly rather than silently
+        ignore the argument."""
+        raw = make_synthetic_raw(["Fz", "Cz"], "eeg", sfreq=250, n_samples=500)
+        raw.set_annotations(mne.Annotations([0.4], [0], ["1"]))
+
+        with pytest.raises(ValueError, match="binary offset correction requires a stim channel"):
+            raw.select_events(binary=100)
 
 
 # ============================================================================
