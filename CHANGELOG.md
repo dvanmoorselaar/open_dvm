@@ -5,7 +5,16 @@ All notable changes to OpenDvM will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.1.1] - Unreleased
+## [0.2.0] - Unreleased
+
+### Added
+- Multi-format raw EEG support: `eeg_preprocessing_pipeline()` gained a `raw_ext` parameter (default `'bdf'`, no behavior change for existing callers) to discover and read `.edf`, BrainVision `.vhdr`, Neuroscan `.cnt`, and EEGLAB `.set` recordings, in addition to `.bdf`.
+- `annotation_event_id` parameter (`eeg_preprocessing_pipeline` and `RAW.select_events`) for formats that represent triggers as annotations rather than a stim channel (BrainVision, Neuroscan, EEGLAB) -- `select_events` now falls back to `mne.events_from_annotations` when no stim channel is found.
+
+### Fixed
+- `RAW` crashed outright on BrainVision and Neuroscan CNT files with the default `eog=None`, since those readers require an iterable rather than `None`. EEGLAB `.set` silently dropped the `eog` argument entirely rather than forwarding it. Both fixed.
+
+## [0.1.1] - 2026-08-16
 
 ### Added
 - Documentation site (`docs/`, Sphinx + MyST-NB) published to [ReadTheDocs](https://open-dvm.readthedocs.io/), including a real API reference generated from docstrings and rendered tutorial notebooks with actual output.
