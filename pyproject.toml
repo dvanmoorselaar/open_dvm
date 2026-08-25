@@ -49,6 +49,11 @@ dev = [
     "flake8>=3.9",
     "isort>=5.0",
     "mypy>=0.900",
+    # Only used to fabricate real BrainVision/EDF/EEGLAB files for
+    # round-trip format tests (mne.export.export_raw's optional backends)
+    "pybv>=0.7",
+    "edfio>=0.4",
+    "eeglabio>=0.0.3",
 ]
 
 [project.urls]

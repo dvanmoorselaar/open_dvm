@@ -35,6 +35,7 @@ Organization
 
 import os
 import time
+from pathlib import Path
 
 import matplotlib
 import mne
@@ -131,6 +132,60 @@ class TestRawFileDispatch:
             mock_reader.return_value = self._stub_raw()
             RAW("/tmp/fake.bdf", file_type="fif")
             assert mock_reader.called
+
+
+class TestRawRealFormatRoundTrip:
+    """Genuine round-trips through real files, not mocks -- verifies the
+    non-bdf/edf formats actually work end to end, not just that the
+    right MNE function gets called (see TestRawFileDispatch for that).
+
+    Regression context: eog=None (RAW's own default) used to crash
+    brainvision/cnt outright and got silently dropped for set, since
+    those readers require an iterable rather than None. Every test here
+    uses the default eog=None on purpose, since that's what every
+    real caller who doesn't specify eog channels actually hits.
+    """
+
+    CNT_FIXTURE = Path(__file__).resolve().parents[1] / "fixtures" / "data" / "sample.cnt"
+    EDF_FIXTURE = Path(__file__).resolve().parents[1] / "fixtures" / "data" / "sample.edf"
+
+    @pytest.mark.unit
+    def test_reads_real_edf_file(self):
+        """sample.edf is MNE's own test fixture for its EDF reader
+        (BSD-3-Clause, mne-tools/mne-testing-data) -- a real recording,
+        not something round-tripped through mne.export (its EDF writer
+        has an unrelated, reproducible bug that corrupts sample values;
+        see the branch discussion -- not an open_dvm issue, but not a
+        safe way to fabricate an EDF test file either)."""
+        loaded = RAW(str(self.EDF_FIXTURE))  # eog defaults to None -- must not crash
+
+        assert loaded.ch_names == ["Fp1", "F7", "T3"]
+        assert loaded.info["sfreq"] == 512.0
+        assert loaded.n_times == 2560
+
+    @pytest.mark.unit
+    @pytest.mark.parametrize("ext,fmt", [("vhdr", "brainvision"), ("set", "eeglab")])
+    def test_round_trip_preserves_channels_and_data(self, tmp_path, ext, fmt):
+        raw = make_synthetic_raw(["Fz", "Cz", "Pz"], "eeg", sfreq=250, n_samples=500)
+        path = str(tmp_path / f"test_raw.{ext}")
+        mne.export.export_raw(path, raw, fmt=fmt, overwrite=True)
+
+        loaded = RAW(path)  # eog defaults to None -- must not crash
+
+        assert loaded.ch_names == raw.ch_names
+        assert loaded.info["sfreq"] == raw.info["sfreq"]
+        np.testing.assert_allclose(loaded.get_data(), raw.get_data(), atol=1e-9)
+
+    @pytest.mark.unit
+    def test_reads_real_neuroscan_cnt_file(self):
+        """sample.cnt is MNE's own test fixture for its CNT reader
+        (BSD-3-Clause, mne-tools/mne-testing-data) -- a real Neuroscan
+        recording, not something we fabricated ourselves."""
+        loaded = RAW(str(self.CNT_FIXTURE))  # eog defaults to None -- must not crash
+
+        assert loaded.ch_names == ["F8", "FCz"]
+        assert loaded.info["sfreq"] == 1000.0
+        assert loaded.n_times == 90000
 
 
 # ============================================================================

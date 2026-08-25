@@ -50,6 +50,11 @@ erp.condition_erps(pos_labels={'target_loc': [2, 6]})
 
 The `tutorials/` folder contains 10 Jupyter notebooks that walk through the toolbox end to end, from preprocessing to advanced decoding. For rendered versions with real output already included, see the [hosted tutorials](https://open-dvm.readthedocs.io/en/latest/tutorials/index.html).
 
+**How they fit together:**
+- **00** uses synthetic, on-the-fly generated data with deliberately strong, guaranteed-significant effects -- a safe, fast playground for learning the plotting/statistics API before touching real data. Start here.
+- **01** preprocesses raw EEG into the epoched format every other tutorial reads. It requires interactive ICA component selection, so it can't run headless -- but you can skip it entirely: every other tutorial auto-downloads an already-preprocessed example dataset the first time it runs.
+- **02 through 09** all analyze that *same* example dataset (not different datasets per tutorial) -- each one just picks whichever subject best illustrates its particular analysis method, so you'll see `sj = 1` in some and `sj = 2` in others. Each covers one analysis module (ERP, TFR, BDM, or CTF) end to end, so they can be read in any order once you've done 00.
+
 | Notebook | Description |
 |---|---|
 | [00_visualization_and_statistics](tutorials/00_visualization_and_statistics.ipynb) | Tour of every plotting/statistics option in `open_dvm.visualization.plot`, using synthetic data with guaranteed-significant effects. Read this one first. |
@@ -67,7 +72,7 @@ The `tutorials/` folder contains 10 Jupyter notebooks that walk through the tool
 
 Analyses are run from project-specific scripts, pointed at a project folder containing:
 
-1. `eeg/raw` (raw EEG files, `.bdf` or `.edf`)
+1. `eeg/raw` (raw EEG files -- `.bdf` (BioSemi), `.edf`, BrainVision `.vhdr`, Neuroscan `.cnt`, or EEGLAB `.set`; pass the extension via `eeg_preprocessing_pipeline`'s `raw_ext` parameter, default `'bdf'`)
 2. `behavioral/raw` (raw behavior files, `.csv`)
 3. `eye/raw` (raw eye-tracking files, if available: `.asc` or `.csv`)
 

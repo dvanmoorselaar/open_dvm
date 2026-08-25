@@ -248,6 +248,15 @@ class RAW(BaseRaw, FolderStructure):
         # Convert to Path object for easier handling
         input_fname = os.path.expanduser(input_fname)
 
+        # Normalize eog before dispatch: edf/bdf's own readers treat
+        # eog=None as "no eog channels", but brainvision/cnt/eeglab's
+        # readers require an iterable and crash on None (verified: both
+        # brainvision and cnt raise TypeError on `ch_name in eog` checks
+        # when eog is None). () is accepted by every reader and means
+        # the same thing.
+        if eog is None:
+            eog = ()
+
         # Auto-detect file type from extension if not specified
         if file_type is None:
             ext = os.path.splitext(input_fname)[1].lower()
@@ -299,7 +308,9 @@ class RAW(BaseRaw, FolderStructure):
                 input_fname, eog=eog, preload=preload, verbose=verbose, **kwargs
             )
         elif file_type == "set":
-            raw = mne.io.read_raw_eeglab(input_fname, preload=preload, verbose=verbose, **kwargs)
+            raw = mne.io.read_raw_eeglab(
+                input_fname, eog=eog, preload=preload, verbose=verbose, **kwargs
+            )
         else:
             raise ValueError(
                 f"Unsupported file type: {file_type}. "

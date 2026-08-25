@@ -5,6 +5,13 @@ auto-downloaded example dataset -- no manual data setup required. Outputs on thi
 re-executed automatically whenever the tutorials change (see `.github/workflows/docs-notebooks.yml`),
 so they always reflect the current codebase, just not necessarily the exact commit being viewed.
 
+**How they fit together:** 00 uses synthetic, on-the-fly generated data with deliberately strong
+effects -- a safe, fast playground for the plotting/statistics API before touching real data.
+Every tutorial from 02 onward analyzes the *same* real example dataset (not a different one per
+tutorial); each just picks whichever subject best illustrates its particular analysis method, so
+you'll see `sj = 1` in some and `sj = 2` in others. Each covers one analysis module end to end, so
+they can be read in any order once you've done 00.
+
 ```{note}
 **Tutorial 1 (Preprocessing)** requires interactive ICA component selection, so it can't run
 headless. Run it locally in Jupyter instead -- see

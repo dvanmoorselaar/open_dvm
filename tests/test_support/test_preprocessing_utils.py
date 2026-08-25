@@ -107,6 +107,16 @@ class TestFindRawFiles:
         assert files == []
 
     @pytest.mark.unit
+    def test_ext_parameter_searches_non_bdf_extensions(self, tmp_path):
+        (tmp_path / "sub_2_ses_1.cnt").touch()
+        (tmp_path / "sub_2_ses_1.bdf").touch()  # must not match with ext='cnt'
+
+        files = find_raw_files(str(tmp_path), sj=2, session=1, ext="cnt")
+
+        assert len(files) == 1
+        assert files[0].endswith(".cnt")
+
+    @pytest.mark.unit
     def test_multiple_ambiguous_matches_raise_regression(self, tmp_path):
         """Regression test: the docstring always promised a
         FileNotFoundError on multiple matches, but the check was
